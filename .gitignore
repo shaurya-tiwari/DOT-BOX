@@ -22,3 +22,8 @@ backend/venv/
 
 # Vite
 frontend/.vite/
+
+# Graphify
+graphify-out/
+.graphify*
+
