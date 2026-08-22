@@ -3,121 +3,89 @@ import logo from '../assets/dotbox-logo-dark.png'
 import './SplashScreen.css'
 
 export default function SplashScreen({ onFinish }) {
-  const [risen,   setRisen]   = useState(false)
-  const [isOpen,  setIsOpen]  = useState(false)
-  const [fadingOut, setFadingOut] = useState(false)
+  const [risen, setRisen] = useState(false)
+  const [opened, setOpened] = useState(false)
+  const [done, setDone] = useState(false)
 
-  // The whole spinning unit (logo + text together)
-  const unitRef  = useRef(null)
-  const rafRef   = useRef(null)
-  const angleRef = useRef(0)
-  const speedRef = useRef(0)
-  const stageRef = useRef('idle')
+  const unitRef = useRef(null)
+  const rafRef = useRef(null)
+  const angle = useRef(0)
+  const speed = useRef(0)
+  const spinning = useRef(false)
 
-  /* ── JS-driven smooth spin → decelerate → snap ── */
-  const runSpin = () => {
-    stageRef.current = 'spinning'
-    let last = null
+  function applyRotation() {
+    if (!unitRef.current) return
+    unitRef.current.style.transition = 'none'
+    unitRef.current.style.transform = `perspective(800px) rotateX(-12deg) rotateY(${angle.current}deg)`
+  }
 
-    const tick = (ts) => {
-      if (last !== null) {
-        const dt = Math.min(ts - last, 50)
-
-        if (stageRef.current === 'spinning') {
-          // Accelerate
-          speedRef.current = Math.min(speedRef.current + dt * 0.001, 0.30)
-          angleRef.current += speedRef.current * dt
-
-          if (unitRef.current) {
-            unitRef.current.style.transition = 'none'
-            unitRef.current.style.transform  =
-              `perspective(800px) rotateX(-12deg) rotateY(${angleRef.current}deg)`
-          }
-          rafRef.current = requestAnimationFrame(tick)
-
-        } else if (stageRef.current === 'decelerating') {
-          // Decelerate smoothly
-          speedRef.current = Math.max(speedRef.current - dt * 0.0012, 0)
-          angleRef.current += speedRef.current * dt
-
-          if (speedRef.current === 0) {
-            stageRef.current = 'stopped'
-            // Snap to nearest full rotation (faces front)
-            const snap = Math.round(angleRef.current / 360) * 360
-            if (unitRef.current) {
-              unitRef.current.style.transition = 'transform 0.5s cubic-bezier(0.25,1,0.5,1)'
-              unitRef.current.style.transform  =
-                `perspective(800px) rotateX(-12deg) rotateY(${snap}deg)`
-            }
-            return
-          }
-
-          if (unitRef.current) {
-            unitRef.current.style.transition = 'none'
-            unitRef.current.style.transform  =
-              `perspective(800px) rotateX(-12deg) rotateY(${angleRef.current}deg)`
-          }
-          rafRef.current = requestAnimationFrame(tick)
-        }
-      }
-      last = ts
+  function spinLoop(ts, lastTs) {
+    if (!lastTs) {
+      rafRef.current = requestAnimationFrame((t) => spinLoop(t, ts))
+      return
     }
 
-    rafRef.current = requestAnimationFrame(tick)
+    const dt = Math.min(ts - lastTs, 50)
+
+    if (spinning.current) {
+      speed.current = Math.min(speed.current + dt * 0.001, 0.3)
+    } else {
+      speed.current = Math.max(speed.current - dt * 0.0012, 0)
+    }
+
+    angle.current += speed.current * dt
+    applyRotation()
+
+    if (!spinning.current && speed.current === 0) {
+      // snap to nearest full rotation so logo faces forward
+      const snapped = Math.round(angle.current / 360) * 360
+      unitRef.current.style.transition = 'transform 0.5s ease-out'
+      unitRef.current.style.transform = `perspective(800px) rotateX(-12deg) rotateY(${snapped}deg)`
+      return
+    }
+
+    rafRef.current = requestAnimationFrame((t) => spinLoop(t, ts))
   }
 
   useEffect(() => {
-    const t = [
-      setTimeout(() => setRisen(true),                        80),
-      setTimeout(() => runSpin(),                            350),
-      setTimeout(() => { stageRef.current = 'decelerating' }, 2200),
-      setTimeout(() => setIsOpen(true),                     3000),
-      setTimeout(() => setFadingOut(true),                  5400),
-      setTimeout(() => onFinish?.(),                        6100),
+    const timers = [
+      setTimeout(() => setRisen(true), 100),
+      setTimeout(() => {
+        spinning.current = true
+        rafRef.current = requestAnimationFrame((ts) => spinLoop(ts, null))
+      }, 400),
+      setTimeout(() => { spinning.current = false }, 2200),
+      setTimeout(() => setOpened(true), 3000),
+      setTimeout(() => setDone(true), 5400),
+      setTimeout(() => onFinish?.(), 6100),
     ]
+
     return () => {
-      t.forEach(clearTimeout)
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      timers.forEach(clearTimeout)
+      cancelAnimationFrame(rafRef.current)
     }
-  }, [onFinish])
+  }, [])
 
   return (
-    <div className={`sp-overlay${fadingOut ? ' sp-out' : ''}`}>
-      <div className="sp-scanlines" />
+    <div className={`splash ${done ? 'splash-exit' : ''}`}>
+      <div className="scanlines" />
 
-      <div className="sp-scene">
-
-        {/* ── Rising wrapper (handles vertical entry) ── */}
-        <div className={`sp-riser${risen ? ' risen' : ''}`}>
-
-          {/* ── Spinning unit: logo + text rotate TOGETHER ── */}
+      <div className="scene">
+        <div className={`riser ${risen ? 'riser-in' : ''}`}>
           <div
-            className="sp-unit"
+            className="spin-unit"
             ref={unitRef}
             style={{ transform: 'perspective(800px) rotateX(-12deg) rotateY(0deg)' }}
           >
-            {/* Logo image */}
-            <img
-              src={logo}
-              alt="DOT-BOX logo"
-              className="sp-logo"
-            />
-
-            {/* DOT-BOX text — spins with the logo */}
-            <div className={`sp-label${isOpen ? ' label-glow' : ''}`}>
-              DOT-BOX
-            </div>
+            <img src={logo} alt="DOT-BOX" className="logo-img" />
+            <p className={`logo-text ${opened ? 'glow' : ''}`}>DOT-BOX</p>
           </div>
 
-          {/* Lid flies off when box opens (outside spinner so it goes own way) */}
-          <div className={`sp-lid${isOpen ? ' lid-up' : ''}`} />
-
-          {/* Glow burst when box opens */}
-          <div className={`sp-burst${isOpen ? ' burst-on' : ''}`} />
+          <div className={`lid ${opened ? 'lid-open' : ''}`} />
+          <div className={`burst ${opened ? 'burst-pop' : ''}`} />
         </div>
 
-        {/* Ground shadow */}
-        <div className={`sp-shadow${risen ? ' shadow-on' : ''}`} />
+        <div className={`ground-shadow ${risen ? 'shadow-in' : ''}`} />
       </div>
     </div>
   )
