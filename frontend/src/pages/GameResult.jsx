@@ -1,18 +1,18 @@
 export default function GameResult({ game, playerId, playerName, onRematch, onHome, inline }) {
   const winner = game?.winner
-  const myPlayer  = game?.players?.find(p => p.player_id === playerId)
+  const myPlayer = game?.players?.find(p => p.player_id === playerId)
   const oppPlayer = game?.players?.find(p => p.player_id !== playerId)
 
   const isWinner = winner === playerId
-  const isDraw   = winner === 'draw'
+  const isDraw = winner === 'draw'
 
-  const emoji  = isDraw ? '🤝' : isWinner ? '🏆' : '😔'
-  const title  = isDraw ? "It's a draw!" : isWinner ? 'You won!' : `${oppPlayer?.name || 'Opponent'} won`
+  const emoji = isDraw ? '🤝' : isWinner ? '🏆' : '😔'
+  const title = isDraw ? "It's a draw!" : isWinner ? 'You won!' : `${oppPlayer?.name || 'Opponent'} won`
   const subMsg = isDraw
     ? 'Great game! Both players scored equally.'
     : isWinner
-    ? 'Excellent play — you captured the most boxes!'
-    : 'Better luck next time!'
+      ? 'Excellent play — you captured the most boxes!'
+      : 'Better luck next time!'
 
   const content = (
     <div className="card" style={{
