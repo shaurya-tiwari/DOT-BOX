@@ -1,6 +1,17 @@
+import { useState, useEffect } from 'react'
+import { pingServer } from '../api'
+
 export default function Home({ navigate }) {
+  const [serverStatus, setServerStatus] = useState('Connecting to server...')
+
+  useEffect(() => {
+    pingServer()
+      .then(() => setServerStatus('Connected to server'))
+      .catch(() => setServerStatus('Server sleeping...'))
+  }, [])
+
   return (
-    <div className="page fade-in">
+    <div className="page fade-in" style={{ position: 'relative' }}>
       {/* Logo */}
       <div className="logo">
         <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 20 }}>
@@ -31,6 +42,19 @@ export default function Home({ navigate }) {
       <p className="text-small text-muted" style={{ textAlign: 'center' }}>
         Share a room code with a friend to play together
       </p>
+
+      {/* Server Status Indicator */}
+      <div style={{
+        position: 'fixed',
+        bottom: '8px',
+        left: '12px',
+        fontSize: '0.65rem',
+        color: 'var(--muted)',
+        opacity: 0.7,
+        pointerEvents: 'none'
+      }}>
+        {serverStatus}
+      </div>
     </div>
   )
 }

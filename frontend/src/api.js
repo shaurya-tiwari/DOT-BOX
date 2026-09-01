@@ -1,5 +1,11 @@
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
+export async function pingServer() {
+  const res = await fetch(`${BASE}/api/health`)
+  if (!res.ok) throw new Error('Failed to ping server')
+  return res.json()
+}
+
 export async function createGame(playerName, gridSize, maxPlayers = 2) {
   const res = await fetch(`${BASE}/api/games`, {
     method: 'POST',
