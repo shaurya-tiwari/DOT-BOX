@@ -14,7 +14,10 @@ export default function JoinGame({ navigate }) {
     setLoading(true)
     try {
       const data = await joinGame(code.trim(), name.trim())
-      navigate('game', {
+      // IMPORTANT: Navigate to 'waiting' (not 'game') so the WebSocket handshake
+      // completes properly. WaitingRoom auto-redirects both players once
+      // game_state.status === 'playing' is received.
+      navigate('waiting', {
         roomId: data.room_id,
         playerId: data.player_id,
         playerName: name.trim(),
@@ -55,7 +58,7 @@ export default function JoinGame({ navigate }) {
           <label className="input-label">Room Code</label>
           <input
             id="input-room-code"
-            className={`input mono ${error.includes('code') || error.includes('Room') ? 'input-error' : ''}`}
+            className={`input mono ${error.includes('code') || error.includes('Room') || error.includes('6') ? 'input-error' : ''}`}
             placeholder="ABC123"
             value={code}
             maxLength={6}

@@ -1,0 +1,14 @@
+{
+  "name": "dot-box",
+  "version": "1.0.0",
+  "description": "Real-time multiplayer Dots & Boxes",
+  "scripts": {
+    "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && source .venv/bin/activate && uvicorn main:app --reload --port 8000",
+    "frontend": "cd frontend && npm run dev",
+    "install:all": "cd frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

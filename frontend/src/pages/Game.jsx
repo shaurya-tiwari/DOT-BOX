@@ -1,40 +1,57 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { GameSocket } from '../socket'
 import Header        from '../components/Header'
-import TurnIndicator from '../components/TurnIndicator'
-import ScoreBoard    from '../components/ScoreBoard'
+import { ScoreRow } from '../components/ScoreBoard'
 import GameBoard     from '../components/GameBoard'
 import GameResult    from './GameResult'
+import ConfirmModal  from '../components/ConfirmModal'
 
 export default function Game({ navigate, gameData, setGameData }) {
-  const { roomId, playerId, playerName } = gameData || {}
-  const [game, setGame]               = useState(gameData?.gameState || null)
-  const [disconnected, setDisconnected] = useState(false)
+  const { roomId, playerId, playerName, isJoiner } = gameData || {}
+  const isHost = !isJoiner
+
+  const [game, setGame]                 = useState(gameData?.gameState || null)
+  const [disconnectedPlayer, setDisconnectedPlayer] = useState(null)
+  const [socketState, setSocketState]   = useState('connecting')
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
   const socketRef = useRef(null)
 
   useEffect(() => {
     if (!roomId || !playerId) return
 
-    const socket = new GameSocket(roomId, playerId, (msg) => {
-      if (msg.type === 'game_state') {
-        setGame(msg.game)
-      } else if (msg.type === 'player_disconnected') {
-        setDisconnected(true)
-      }
-    })
+    const socket = new GameSocket(roomId, playerId,
+      (msg) => {
+        if (msg.type === 'game_state') {
+          const g = msg.game
+          setGame(g)
+          if (g.status === 'lobby') {
+            navigate('waiting', { roomId, playerId, playerName, isJoiner, gameState: g, isInLobby: true })
+          }
+        } else if (msg.type === 'player_disconnected') {
+          setDisconnectedPlayer(msg.player_name || 'Opponent')
+        } else if (msg.type === 'player_connected') {
+          if (msg.player_id !== playerId) setDisconnectedPlayer(null)
+        } else if (msg.type === 'error') {
+          console.warn('[DOT-BOX] Server error:', msg.message)
+          if (msg.message === 'Room not found') {
+            socketRef.current?.disconnect()
+            navigate('home')
+          }
+        }
+      },
+      { onStateChange: setSocketState, onOpen: () => setDisconnectedPlayer(null) }
+    )
     socket.connect()
     socketRef.current = socket
-
     return () => socket.disconnect()
   }, [roomId, playerId])
 
-  function handleMove(wallId) {
-    socketRef.current?.sendMove(wallId)
-  }
-
-  function handleRematch() {
-    socketRef.current?.sendRematch()
-  }
+  const handleMove = useCallback((wallId) => socketRef.current?.sendMove(wallId), [])
+  const handleBackToLobbyClick   = useCallback(() => setShowLeaveModal(true), [])
+  const handleBackToLobbyConfirm = useCallback(() => {
+    setShowLeaveModal(false)
+    socketRef.current?.sendBackToLobby()
+  }, [])
 
   if (!game) {
     return (
@@ -45,47 +62,84 @@ export default function Game({ navigate, gameData, setGameData }) {
     )
   }
 
-  const isMyTurn = game.current_turn === playerId && game.status === 'playing'
-  const myPlayer  = game.players?.find(p => p.player_id === playerId)
-  const oppPlayer = game.players?.find(p => p.player_id !== playerId)
+  const { players = [], current_turn, status } = game
+  const isMyTurn   = current_turn === playerId && status === 'playing'
+  const turnPlayer = players.find(p => p.player_id === current_turn)
+  const turnLabel  = status === 'playing'
+    ? isMyTurn ? 'Your turn' : `${turnPlayer?.name || 'Opponent'}'s turn`
+    : status === 'finished' ? 'Game over' : ''
 
   return (
-    <div className="page page-game fade-in">
-      <Header roomId={roomId} />
+    <div className="page-game-root fade-in">
+      {/* ── Top bar ── */}
+      <div className="game-top">
+        <Header roomId={roomId} playerCount={players.length} />
 
-      {disconnected && (
-        <div className="disconnect-banner">⚠ Opponent disconnected</div>
-      )}
+        {socketState === 'reconnecting' && (
+          <div className="reconnect-banner">🔄 Reconnecting…</div>
+        )}
+        {disconnectedPlayer && socketState === 'open' && (
+          <div className="disconnect-banner">⚠ {disconnectedPlayer} disconnected</div>
+        )}
 
-      <TurnIndicator
-        isMyTurn={isMyTurn}
-        myName={myPlayer?.name || playerName}
-        oppName={oppPlayer?.name || 'Opponent'}
-        status={game.status}
-      />
+        {/* Turn pill */}
+        <div className="turn-line">
+          <span className={`turn-dot-small ${isMyTurn ? 'my' : 'their'}`} />
+          <span className="turn-label">{turnLabel}</span>
+        </div>
 
-      <div className="board-container">
-        <GameBoard
-          game={game}
-          playerId={playerId}
-          isMyTurn={isMyTurn}
-          onMove={handleMove}
-        />
+        {/* Scores for ALL player counts — compact row above the board */}
+        <ScoreRow players={players} playerId={playerId} currentTurn={current_turn} />
       </div>
 
-      <ScoreBoard
-        game={game}
-        playerId={playerId}
-      />
+      {/* ── Board — full width, no side panels ── */}
+      <div className="game-main" style={{ padding: '0 4px' }}>
+        <div className="game-center" style={{ width: '100%' }}>
+          <GameBoard
+            game={game}
+            playerId={playerId}
+            isMyTurn={isMyTurn}
+            onMove={handleMove}
+          />
+        </div>
+      </div>
 
-      {game.status === 'finished' && (
+      {/* ── Host controls ── */}
+      {isHost && status !== 'finished' && (
+        <div className="game-bottom">
+          <div className="host-controls" style={{ maxWidth: 480, margin: '0 auto' }}>
+            <span className="host-badge">👑 Host</span>
+            <div className="host-actions">
+              <button id="btn-host-lobby" className="host-btn" onClick={handleBackToLobbyClick}>
+                ↩ Back to Lobby
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Game over overlay ── */}
+      {status === 'finished' && (
         <GameResult
           game={game}
           playerId={playerId}
           playerName={playerName}
-          onRematch={handleRematch}
+          isHost={isHost}
+          onBackToLobby={handleBackToLobbyClick}
           onHome={() => navigate('home')}
           inline
+        />
+      )}
+
+      {/* ── Confirm modal ── */}
+      {showLeaveModal && (
+        <ConfirmModal
+          title="Back to Lobby?"
+          message="The current game will end and all players will return to the room lobby."
+          confirmLabel="↩ Yes, back to lobby"
+          cancelLabel="No, keep playing"
+          onConfirm={handleBackToLobbyConfirm}
+          onCancel={() => setShowLeaveModal(false)}
         />
       )}
     </div>

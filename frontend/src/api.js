@@ -1,10 +1,10 @@
 const BASE = 'http://localhost:8000'
 
-export async function createGame(playerName, gridSize) {
+export async function createGame(playerName, gridSize, maxPlayers = 2) {
   const res = await fetch(`${BASE}/api/games`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ player_name: playerName, grid_size: gridSize }),
+    body: JSON.stringify({ player_name: playerName, grid_size: gridSize, max_players: maxPlayers }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

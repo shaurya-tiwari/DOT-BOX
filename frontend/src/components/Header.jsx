@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function Header({ roomId }) {
+export default function Header({ roomId, playerCount = 0 }) {
   const [copied, setCopied] = useState(false)
 
   function copy() {
@@ -18,12 +18,23 @@ export default function Header({ roomId }) {
         </span>
       </div>
 
-      <div className="room-badge">
-        <span className="text-muted text-small">Room</span>
-        <span className="room-code">{roomId}</span>
-        <button id="btn-header-copy" className="copy-btn" onClick={copy} title="Copy code">
-          {copied ? '✓' : '⧉'}
-        </button>
+      <div style={{ display: 'flex', align: 'center', gap: '0.5rem' }}>
+        {/* Player count indicator */}
+        <div className="player-count-badge" title={`${playerCount} of 2 players connected`}>
+          <span className={`player-count-dot ${playerCount >= 1 ? 'on' : ''}`} />
+          <span className={`player-count-dot ${playerCount >= 2 ? 'on' : ''}`} />
+          <span className="text-small" style={{ color: playerCount >= 2 ? 'var(--ink)' : 'var(--ink-muted)' }}>
+            {playerCount}/2
+          </span>
+        </div>
+
+        <div className="room-badge">
+          <span className="text-muted text-small">Room</span>
+          <span className="room-code">{roomId}</span>
+          <button id="btn-header-copy" className="copy-btn" onClick={copy} title="Copy code">
+            {copied ? '✓' : '⧉'}
+          </button>
+        </div>
       </div>
 
       {copied && <div className="toast">Code copied!</div>}

@@ -1,4 +1,4 @@
-export default function GameResult({ game, playerId, playerName, onRematch, onHome, inline }) {
+export default function GameResult({ game, playerId, playerName, isHost, onBackToLobby, onHome, inline }) {
   const winner = game?.winner
   const myPlayer = game?.players?.find(p => p.player_id === playerId)
   const oppPlayer = game?.players?.find(p => p.player_id !== playerId)
@@ -41,11 +41,22 @@ export default function GameResult({ game, playerId, playerName, onRematch, onHo
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
-        <button id="btn-rematch" className="btn btn-accent" onClick={onRematch}>
-          ↺ Play Again
-        </button>
+        {/* HOST ONLY — Back to Lobby button */}
+        {isHost && (
+          <button id="btn-back-lobby" className="btn btn-accent" onClick={onBackToLobby}>
+            ↩ Back to Lobby
+          </button>
+        )}
+
+        {/* Guest — waiting message while host decides */}
+        {!isHost && (
+          <div className="guest-waiting-msg">
+            👑 Waiting for host to restart or end…
+          </div>
+        )}
+
         <button id="btn-go-home" className="btn btn-ghost" onClick={onHome}>
-          ← Go Home
+          ✕ Leave Game
         </button>
       </div>
     </div>

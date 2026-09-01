@@ -19,14 +19,19 @@ def _player_id() -> str:
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
-def create_game(player_name: str, grid_size: int) -> Tuple[Game, str]:
+def create_game(player_name: str, grid_size: int, max_players: int = 2) -> Tuple[Game, str]:
     room_id = _gen_room_id()
     while room_id in games:
         room_id = _gen_room_id()
 
     pid = _player_id()
     player = Player(player_id=pid, name=player_name)
-    game = Game(room_id=room_id, grid_size=grid_size, players=[player])
+    game = Game(
+        room_id=room_id,
+        grid_size=grid_size,
+        max_players=max_players,
+        players=[player],
+    )
     games[room_id] = game
     return game, pid
 
@@ -36,16 +41,19 @@ def join_game(room_id: str, player_name: str) -> Tuple[Optional[Game], Optional[
     if room_id not in games:
         return None, None, "Room not found"
     game = games[room_id]
-    if game.status != "waiting":
-        return None, None, "Room is full or game already in progress"
-    if len(game.players) >= 2:
+    # Allow joining a 'waiting' or 'lobby' room
+    if game.status not in ("waiting", "lobby"):
+        return None, None, "Game already in progress"
+    if len(game.players) >= game.max_players:
         return None, None, "Room is full"
 
     pid = _player_id()
     player = Player(player_id=pid, name=player_name)
     game.players.append(player)
-    game.status = "playing"
-    game.current_turn = game.players[0].player_id
+
+    # Move to lobby so host can start when all expected players have joined
+    game.status = "lobby"
+    game.current_turn = None
     return game, pid, None
 
 
@@ -59,11 +67,13 @@ def add_wall(game: Game, player_id: str, wall_id: str) -> Tuple[list, Optional[s
         return [], "Wall already placed"
 
     game.walls.append(wall_id)
+    game.wall_owners[wall_id] = player_id
+
     completed = _check_boxes(game, wall_id)
     _assign_boxes(game, completed, player_id)
 
     scored = len(completed) > 0
-    game.current_turn = _next_turn(game, scored)
+    game.current_turn = _next_turn(game, player_id, scored)
 
     if _is_game_over(game):
         game.status = "finished"
@@ -73,13 +83,21 @@ def add_wall(game: Game, player_id: str, wall_id: str) -> Tuple[list, Optional[s
 
 
 def reset_game(game: Game):
+    """Reset board → lobby so players can confirm restart."""
     game.walls = []
+    game.wall_owners = {}
     game.boxes = {}
     game.winner = None
-    game.status = "playing"
-    game.current_turn = game.players[0].player_id
+    game.status = "lobby"
+    game.current_turn = None
     for p in game.players:
         p.score = 0
+
+
+def start_game(game: Game):
+    """Transition from lobby → playing."""
+    game.status = "playing"
+    game.current_turn = game.players[0].player_id
 
 
 # ── Internal logic ────────────────────────────────────────────────────────────
@@ -115,13 +133,14 @@ def _assign_boxes(game: Game, box_ids: list, player_id: str):
                 break
 
 
-def _next_turn(game: Game, scored: bool) -> str:
+def _next_turn(game: Game, current_player_id: str, scored: bool) -> str:
+    """Cycle through all players. If scored, same player goes again."""
     if scored:
-        return game.current_turn
-    for p in game.players:
-        if p.player_id != game.current_turn:
-            return p.player_id
-    return game.current_turn
+        return current_player_id
+    # Find current index and advance to next player
+    idx = next((i for i, p in enumerate(game.players) if p.player_id == current_player_id), 0)
+    next_idx = (idx + 1) % len(game.players)
+    return game.players[next_idx].player_id
 
 
 def _is_game_over(game: Game) -> bool:
@@ -130,11 +149,11 @@ def _is_game_over(game: Game) -> bool:
 
 
 def _get_winner(game: Game) -> str:
-    if len(game.players) < 2:
+    if not game.players:
         return "draw"
-    p1, p2 = game.players[0], game.players[1]
-    if p1.score > p2.score:
-        return p1.player_id
-    if p2.score > p1.score:
-        return p2.player_id
+    # Player(s) with highest score win. If tie → "draw"
+    max_score = max(p.score for p in game.players)
+    winners = [p for p in game.players if p.score == max_score]
+    if len(winners) == 1:
+        return winners[0].player_id
     return "draw"
