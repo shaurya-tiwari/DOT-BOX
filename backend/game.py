@@ -100,11 +100,7 @@ def set_player_connection(game: Game, player_id: str, connected: bool):
             break
 
     if game.status == "playing":
-        active_count = len([p for p in game.players if p.connected])
-        if active_count < 2:
-            game.status = "finished"
-            game.winner = _get_winner(game)
-        elif not connected and game.current_turn == player_id:
+        if not connected and game.current_turn == player_id:
             game.current_turn = _next_turn(game, player_id, False)
 
 
