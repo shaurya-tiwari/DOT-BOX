@@ -7,13 +7,14 @@ import GameResult    from './GameResult'
 import ConfirmModal  from '../components/ConfirmModal'
 
 export default function Game({ navigate, gameData, setGameData }) {
-  const { roomId, playerId, playerName, isJoiner } = gameData || {}
-  const isHost = !isJoiner
+  const { roomId, playerId, playerName } = gameData || {}
 
   const [game, setGame]                 = useState(gameData?.gameState || null)
+  const isHost = game?.players?.[0]?.player_id === playerId
   const [disconnectedPlayer, setDisconnectedPlayer] = useState(null)
   const [socketState, setSocketState]   = useState('connecting')
   const [showLeaveModal, setShowLeaveModal] = useState(false)
+  const [pendingMove, setPendingMove]   = useState(false)
   const socketRef = useRef(null)
 
   useEffect(() => {
@@ -24,8 +25,9 @@ export default function Game({ navigate, gameData, setGameData }) {
         if (msg.type === 'game_state') {
           const g = msg.game
           setGame(g)
+          setPendingMove(false)
           if (g.status === 'lobby') {
-            navigate('waiting', { roomId, playerId, playerName, isJoiner, gameState: g, isInLobby: true })
+            navigate('waiting', { roomId, playerId, playerName, gameState: g, isInLobby: true })
           }
         } else if (msg.type === 'player_disconnected') {
           setDisconnectedPlayer(msg.player_name || 'Opponent')
@@ -33,6 +35,7 @@ export default function Game({ navigate, gameData, setGameData }) {
           if (msg.player_id !== playerId) setDisconnectedPlayer(null)
         } else if (msg.type === 'error') {
           console.warn('[DOT-BOX] Server error:', msg.message)
+          setPendingMove(false)
           if (msg.message === 'Room not found') {
             socketRef.current?.disconnect()
             navigate('home')
@@ -46,11 +49,17 @@ export default function Game({ navigate, gameData, setGameData }) {
     return () => socket.disconnect()
   }, [roomId, playerId])
 
-  const handleMove = useCallback((wallId) => socketRef.current?.sendMove(wallId), [])
-  const handleBackToLobbyClick   = useCallback(() => setShowLeaveModal(true), [])
-  const handleBackToLobbyConfirm = useCallback(() => {
+  const handleMove = useCallback((wallId) => {
+    if (pendingMove) return
+    setPendingMove(true)
+    socketRef.current?.sendMove(wallId)
+  }, [pendingMove])
+  
+  const handleLeaveClick   = useCallback(() => setShowLeaveModal(true), [])
+  const handleLeaveConfirm = useCallback(() => {
     setShowLeaveModal(false)
-    socketRef.current?.sendBackToLobby()
+    socketRef.current?.sendLeaveRoom()
+    navigate('home')
   }, [])
 
   if (!game) {
@@ -64,6 +73,7 @@ export default function Game({ navigate, gameData, setGameData }) {
 
   const { players = [], current_turn, status } = game
   const isMyTurn   = current_turn === playerId && status === 'playing'
+  const canMove    = isMyTurn && !pendingMove
   const turnPlayer = players.find(p => p.player_id === current_turn)
   const turnLabel  = status === 'playing'
     ? isMyTurn ? 'Your turn' : `${turnPlayer?.name || 'Opponent'}'s turn`
@@ -98,7 +108,7 @@ export default function Game({ navigate, gameData, setGameData }) {
           <GameBoard
             game={game}
             playerId={playerId}
-            isMyTurn={isMyTurn}
+            isMyTurn={canMove}
             onMove={handleMove}
           />
         </div>
@@ -110,7 +120,7 @@ export default function Game({ navigate, gameData, setGameData }) {
           <div className="host-controls" style={{ maxWidth: 480, margin: '0 auto' }}>
             <span className="host-badge">👑 Host</span>
             <div className="host-actions">
-              <button id="btn-host-lobby" className="host-btn" onClick={handleBackToLobbyClick}>
+              <button id="btn-host-lobby" className="host-btn" onClick={() => socketRef.current?.sendBackToLobby()}>
                 ↩ Back to Lobby
               </button>
             </div>
@@ -125,8 +135,8 @@ export default function Game({ navigate, gameData, setGameData }) {
           playerId={playerId}
           playerName={playerName}
           isHost={isHost}
-          onBackToLobby={handleBackToLobbyClick}
-          onHome={() => navigate('home')}
+          onBackToLobby={() => socketRef.current?.sendBackToLobby()}
+          onHome={handleLeaveClick}
           inline
         />
       )}
@@ -134,12 +144,13 @@ export default function Game({ navigate, gameData, setGameData }) {
       {/* ── Confirm modal ── */}
       {showLeaveModal && (
         <ConfirmModal
-          title="Back to Lobby?"
-          message="The current game will end and all players will return to the room lobby."
-          confirmLabel="↩ Yes, back to lobby"
-          cancelLabel="No, keep playing"
-          onConfirm={handleBackToLobbyConfirm}
+          title="Leave this room?"
+          message="You will leave the game and return to the home screen."
+          confirmLabel="✕ Yes, leave room"
+          cancelLabel="No, stay"
+          onConfirm={handleLeaveConfirm}
           onCancel={() => setShowLeaveModal(false)}
+          danger={true}
         />
       )}
     </div>

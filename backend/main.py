@@ -3,7 +3,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import CreateGameRequest, JoinGameRequest
-from game import games, create_game, join_game, add_wall, reset_game, start_game
+from game import games, create_game, join_game, add_wall, reset_game, start_game, set_player_connection, remove_player
 from manager import ConnectionManager
 
 app = FastAPI(title="DOT-BOX API", version="1.0.0")
@@ -65,6 +65,9 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
         manager.disconnect(ws, room_id)
         return
 
+    async with lock:
+        set_player_connection(game, player_id, True)
+
     # Find the player who just connected
     connecting_player = next((p for p in game.players if p.player_id == player_id), None)
 
@@ -103,28 +106,43 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
             elif msg["type"] == "rematch":
                 async with lock:
                     if game.status == "finished":
-                        reset_game(game)   # → sets status to 'lobby'
-                await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
+                        reset_game(game)
+                        await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
             elif msg["type"] == "back_to_lobby":
                 async with lock:
                     if game.status in ("finished", "playing"):
-                        reset_game(game)   # → sets status to 'lobby'
-                await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
+                        reset_game(game)
+                        await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
             elif msg["type"] == "start_game":
                 async with lock:
-                    if game.status == "lobby" and len(game.players) >= 2:
-                        start_game(game)   # → sets status to 'playing'
-                await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
+                    active = len([p for p in game.players if p.connected])
+                    if game.status == "lobby" and active >= 2:
+                        start_game(game)
+                        await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
+
+            elif msg["type"] == "leave_room":
+                async with lock:
+                    remove_player(game, player_id)
+                    await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
     except WebSocketDisconnect:
         manager.disconnect(ws, room_id)
         game = games.get(room_id)
         if game:
-            disconnecting_player = next((p for p in game.players if p.player_id == player_id), None)
-            await manager.broadcast(room_id, {
-                "type": "player_disconnected",
-                "player_id": player_id,
-                "player_name": disconnecting_player.name if disconnecting_player else "Opponent",
-            })
+            async with lock:
+                set_player_connection(game, player_id, False)
+                active = [p for p in game.players if p.connected]
+            
+            if not active:
+                if room_id in games:
+                    del games[room_id]
+            else:
+                disconnecting_player = next((p for p in game.players if p.player_id == player_id), None)
+                await manager.broadcast(room_id, {
+                    "type": "player_disconnected",
+                    "player_id": player_id,
+                    "player_name": disconnecting_player.name if disconnecting_player else "Opponent",
+                })
+                await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})

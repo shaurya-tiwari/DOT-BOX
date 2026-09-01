@@ -82,6 +82,32 @@ def add_wall(game: Game, player_id: str, wall_id: str) -> Tuple[list, Optional[s
     return completed, None
 
 
+def remove_player(game: Game, player_id: str):
+    if game.status == "playing" and game.current_turn == player_id:
+        game.current_turn = _next_turn(game, player_id, False)
+
+    game.players = [p for p in game.players if p.player_id != player_id]
+
+    if game.status == "playing" and len([p for p in game.players if p.connected]) < 2:
+        game.status = "finished"
+        game.winner = _get_winner(game)
+
+
+def set_player_connection(game: Game, player_id: str, connected: bool):
+    for p in game.players:
+        if p.player_id == player_id:
+            p.connected = connected
+            break
+
+    if game.status == "playing":
+        active_count = len([p for p in game.players if p.connected])
+        if active_count < 2:
+            game.status = "finished"
+            game.winner = _get_winner(game)
+        elif not connected and game.current_turn == player_id:
+            game.current_turn = _next_turn(game, player_id, False)
+
+
 def reset_game(game: Game):
     """Reset board → lobby so players can confirm restart."""
     game.walls = []
@@ -97,7 +123,10 @@ def reset_game(game: Game):
 def start_game(game: Game):
     """Transition from lobby → playing."""
     game.status = "playing"
-    game.current_turn = game.players[0].player_id
+    for p in game.players:
+        if p.connected:
+            game.current_turn = p.player_id
+            break
 
 
 # ── Internal logic ────────────────────────────────────────────────────────────
@@ -137,10 +166,19 @@ def _next_turn(game: Game, current_player_id: str, scored: bool) -> str:
     """Cycle through all players. If scored, same player goes again."""
     if scored:
         return current_player_id
-    # Find current index and advance to next player
+    
+    active = [p for p in game.players if p.connected]
+    if not active:
+        return current_player_id
+
+    # Find current index and advance to next connected player
     idx = next((i for i, p in enumerate(game.players) if p.player_id == current_player_id), 0)
-    next_idx = (idx + 1) % len(game.players)
-    return game.players[next_idx].player_id
+    for i in range(1, len(game.players)):
+        next_idx = (idx + i) % len(game.players)
+        if game.players[next_idx].connected:
+            return game.players[next_idx].player_id
+            
+    return current_player_id
 
 
 def _is_game_over(game: Game) -> bool:

@@ -21,7 +21,6 @@ export default function JoinGame({ navigate }) {
         roomId: data.room_id,
         playerId: data.player_id,
         playerName: name.trim(),
-        isJoiner: true,
       })
     } catch (e) {
       setError(e.message)

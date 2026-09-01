@@ -1,0 +1,29 @@
+services:
+  # ── BACKEND ──
+  - type: web
+    name: dot-box-backend
+    env: python
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    plan: free
+
+  # ── FRONTEND ──
+  - type: web
+    name: dot-box-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: "./dist"
+    plan: free
+    envVars:
+      # Inject the dynamic Render backend URL into the frontend build!
+      - key: VITE_API_URL
+        fromService:
+          name: dot-box-backend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_WS_URL
+        # WebSockets on Render are on the same domain but use wss:// 
+        # (Vite will need a bit of parsing if we just pass the URL, but let's keep it simple)
+        sync: false

@@ -32,7 +32,6 @@ export default function CreateGame({ navigate }) {
         playerId: data.player_id,
         playerName: name.trim(),
         maxPlayers: data.max_players,
-        isJoiner: false,   // explicit: this player is always the host
       })
     } catch (e) {
       setError(e.message)

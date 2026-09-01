@@ -3,19 +3,21 @@ import { GameSocket } from '../socket'
 import ConfirmModal from '../components/ConfirmModal'
 
 export default function WaitingRoom({ navigate, gameData }) {
-  const { roomId, playerId, playerName, isJoiner, isInLobby } = gameData || {}
+  const { roomId, playerId, playerName, isInLobby } = gameData || {}
   const socketRef = useRef(null)
   const [copied, setCopied] = useState(false)
   const [gameStatus, setGameStatus] = useState(isInLobby ? 'lobby' : 'waiting')
   const [maxPlayers, setMaxPlayers] = useState(gameData?.maxPlayers || 2)
   const [connectedPlayers, setConnectedPlayers] = useState([
-    { player_id: playerId, player_name: playerName }
+    { player_id: playerId, player_name: playerName, connected: true }
   ])
   const [showJoinedToast, setShowJoinedToast] = useState(null)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
 
   const isLobby = gameStatus === 'lobby'
-  const isHost  = !isJoiner
+  const isHost  = connectedPlayers[0]?.player_id === playerId
+  const activePlayers = connectedPlayers.filter(p => p.connected)
+  const [isStarting, setIsStarting] = useState(false)
 
   useEffect(() => {
     if (!roomId || !playerId) return
@@ -26,13 +28,14 @@ export default function WaitingRoom({ navigate, gameData }) {
 
         if (g.players?.length) {
           setConnectedPlayers(
-            g.players.map(p => ({ player_id: p.player_id, player_name: p.name }))
+            g.players.map(p => ({ player_id: p.player_id, player_name: p.name, connected: p.connected }))
           )
         }
         if (g.max_players) setMaxPlayers(g.max_players)
         setGameStatus(g.status)
 
         if (g.status === 'playing') {
+          setIsStarting(false)
           navigate('game', { gameState: g })
         }
 
@@ -40,8 +43,10 @@ export default function WaitingRoom({ navigate, gameData }) {
         if (msg.player_id !== playerId) {
           setConnectedPlayers(prev => {
             const exists = prev.some(p => p.player_id === msg.player_id)
-            if (exists) return prev
-            return [...prev, { player_id: msg.player_id, player_name: msg.player_name }]
+            if (exists) {
+              return prev.map(p => p.player_id === msg.player_id ? { ...p, connected: true } : p)
+            }
+            return [...prev, { player_id: msg.player_id, player_name: msg.player_name, connected: true }]
           })
           setShowJoinedToast(msg.player_name)
           setTimeout(() => setShowJoinedToast(null), 3000)
@@ -67,6 +72,7 @@ export default function WaitingRoom({ navigate, gameData }) {
   }
 
   function handleStartGame() {
+    setIsStarting(true)
     socketRef.current?.sendStartGame()
   }
 
@@ -78,19 +84,11 @@ export default function WaitingRoom({ navigate, gameData }) {
   // User confirmed leave
   function handleLeaveConfirm() {
     setShowLeaveModal(false)
-    if (isHost && connectedPlayers.length >= 2) {
-      // Host with players → broadcast back_to_lobby so everyone goes to lobby
-      socketRef.current?.sendBackToLobby()
-      // Navigate host too (they'll also get the broadcast but let's be safe)
-      navigate('home')
-    } else {
-      // Guest or solo host → just leave
-      socketRef.current?.disconnect()
-      navigate('home')
-    }
+    socketRef.current?.sendLeaveRoom()
+    navigate('home')
   }
 
-  const waitingForMore = connectedPlayers.length < maxPlayers && !isLobby
+  const waitingForMore = activePlayers.length < maxPlayers && !isLobby
 
   const headerTitle = isLobby
     ? '🏠 Room Lobby'
@@ -142,7 +140,7 @@ export default function WaitingRoom({ navigate, gameData }) {
             const p = connectedPlayers[i]
             const isMe = p && p.player_id === playerId
             return (
-              <div key={i} className={`player-slot ${p ? 'filled' : 'empty'}`}>
+              <div key={i} className={`player-slot ${p ? (p.connected ? 'filled' : 'empty') : 'empty'}`}>
                 <div className={`player-avatar p${i + 1}`}>
                   {p ? p.player_name[0].toUpperCase() : '?'}
                 </div>
@@ -153,24 +151,25 @@ export default function WaitingRoom({ navigate, gameData }) {
                     {p && !isMe && i === 0 && <span className="you-badge"> 👑</span>}
                   </div>
                   <div className="text-small text-muted">
-                    {p ? `Player ${i + 1} · Connected` : 'Not yet joined'}
+                    {p ? (p.connected ? `Player ${i + 1} · Connected` : `Disconnected`) : 'Not yet joined'}
                   </div>
                 </div>
-                {p && <div className="player-connected-dot" />}
+                {p && p.connected && <div className="player-connected-dot" />}
               </div>
             )
           })}
         </div>
 
         {/* Lobby: HOST ONLY — Start Game button */}
-        {isLobby && connectedPlayers.length >= 2 && isHost && (
+        {isLobby && activePlayers.length >= 2 && isHost && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <button
               id="btn-start-game"
               className="btn btn-accent"
               onClick={handleStartGame}
+              disabled={isStarting}
             >
-              ▶ Start Game!
+              {isStarting ? 'Starting…' : '▶ Start Game!'}
             </button>
             <p className="text-small text-muted" style={{ textAlign: 'center' }}>
               👑 You are the host — only you can start
@@ -179,7 +178,7 @@ export default function WaitingRoom({ navigate, gameData }) {
         )}
 
         {/* Lobby: GUEST — waiting for host to start */}
-        {isLobby && connectedPlayers.length >= 2 && !isHost && (
+        {isLobby && activePlayers.length >= 2 && !isHost && (
           <div className="guest-waiting-msg">
             👑 Waiting for host to start the game…
           </div>
@@ -195,10 +194,10 @@ export default function WaitingRoom({ navigate, gameData }) {
         )}
 
         {/* Lobby: waiting for 2nd player to rejoin */}
-        {isLobby && connectedPlayers.length < 2 && (
+        {isLobby && activePlayers.length < 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
             <div className="spinner" />
-            <p className="text-small text-muted">Waiting for opponent to reconnect…</p>
+            <p className="text-small text-muted">Waiting for opponent to connect…</p>
           </div>
         )}
 
@@ -221,20 +220,12 @@ export default function WaitingRoom({ navigate, gameData }) {
       {showLeaveModal && (
         <ConfirmModal
           title="Leave this room?"
-          message={
-            isHost && connectedPlayers.length >= 2
-              ? 'All connected players will be sent back to the room lobby.'
-              : 'You will leave the room and return to the home screen.'
-          }
-          confirmLabel={
-            isHost && connectedPlayers.length >= 2
-              ? '↩ Yes, back to lobby'
-              : '✕ Yes, leave room'
-          }
+          message="You will leave the room and return to the home screen."
+          confirmLabel="✕ Yes, leave room"
           cancelLabel="No, stay"
           onConfirm={handleLeaveConfirm}
           onCancel={() => setShowLeaveModal(false)}
-          danger={!(isHost && connectedPlayers.length >= 2)}
+          danger={true}
         />
       )}
 

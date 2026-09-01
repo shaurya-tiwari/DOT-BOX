@@ -9,7 +9,7 @@ import GameResult from './pages/GameResult'
 export default function App() {
   const [view, setView] = useState('home')
   const [gameData, setGameData] = useState(null)
-  // gameData shape: { roomId, playerId, playerName, isJoiner, gameState }
+  // gameData shape: { roomId, playerId, playerName, gameState }
 
   function navigate(page, extra = {}) {
     // Reset all game state when returning to top-level pages

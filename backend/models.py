@@ -6,6 +6,7 @@ class Player(BaseModel):
     player_id: str
     name: str
     score: int = 0
+    connected: bool = True
 
 
 class Game(BaseModel):

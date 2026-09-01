@@ -1,4 +1,4 @@
-const WS_BASE = 'ws://localhost:8000'
+const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
 const BACKOFF = [1000, 2000, 4000, 8000, 16000] // ms between reconnect attempts
 
@@ -71,6 +71,11 @@ export class GameSocket {
 
   sendBackToLobby() {
     this._send({ type: 'back_to_lobby' })
+  }
+
+  sendLeaveRoom() {
+    this._send({ type: 'leave_room' })
+    this.disconnect()
   }
 
   sendStartGame() {
