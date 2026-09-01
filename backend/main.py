@@ -132,13 +132,10 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
         game = games.get(room_id)
         if game:
             async with lock:
-                set_player_connection(game, player_id, False)
-                active = [p for p in game.players if p.connected]
+                still_connected = any(pid == player_id for _, pid in manager._rooms.get(room_id, []))
+                set_player_connection(game, player_id, still_connected)
             
-            if not active:
-                if room_id in games:
-                    del games[room_id]
-            else:
+            if not still_connected:
                 disconnecting_player = next((p for p in game.players if p.player_id == player_id), None)
                 await manager.broadcast(room_id, {
                     "type": "player_disconnected",
