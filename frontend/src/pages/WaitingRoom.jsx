@@ -197,7 +197,7 @@ export default function WaitingRoom({ navigate, gameData }) {
         {isLobby && activePlayers.length < 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
             <div className="spinner" />
-            <p className="text-small text-muted">Waiting for opponent to connect…</p>
+            <p className="text-small text-muted">Waiting for opponent to reconnect…</p>
           </div>
         )}
 
