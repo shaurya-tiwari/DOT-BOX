@@ -175,20 +175,23 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
         const fill       = playerFillMap[pid] || 'rgba(150,150,150,0.12)'
         const color      = playerColorMap[pid] || '#888'
         const name       = playerNameMap[pid] || '?'
-        // Truncate name to fit in cell
-        const displayName = name.length > 4 ? name.slice(0, 3) + '…' : name
+        // Aggressive truncate: show max 2 chars on small cells, 3 on bigger
+        const maxChars   = CELL < 30 ? 1 : CELL < 45 ? 2 : 3
+        const displayName = name.length > maxChars ? name.slice(0, maxChars) : name
+        // Font scales with cell — much smaller so it stays inside
+        const fontSize   = Math.max(6, Math.min(CELL * 0.32, 13))
         return (
           <g key={boxId} className="box-pop">
             <rect
-              x={x + 3} y={y + 3}
-              width={CELL - 6} height={CELL - 6}
-              fill={fill} rx={6}
+              x={x + 2} y={y + 2}
+              width={CELL - 4} height={CELL - 4}
+              fill={fill} rx={3}
             />
             <text
               x={x + CELL / 2} y={y + CELL / 2 + 1}
               textAnchor="middle" dominantBaseline="middle"
-              fill={color} fontSize={Math.max(11, CELL * 0.22)}
-              fontWeight="700" fontFamily="Inter, sans-serif"
+              fill={color} fontSize={fontSize}
+              fontWeight="800" fontFamily="Inter, sans-serif"
               pointerEvents="none"
             >
               {displayName}
@@ -196,6 +199,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
           </g>
         )
       })}
+
 
       {/* ── Drawn walls (colored by player who drew them) ── */}
       {Array.from(wallsSet).map(wallId => {
