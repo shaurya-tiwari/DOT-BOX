@@ -15,7 +15,6 @@ services:
     rootDir: frontend
     buildCommand: "npm install && npm run build"
     staticPublishPath: "./dist"
-    plan: free
     envVars:
       # Inject the dynamic Render backend URL into the frontend build!
       - key: VITE_API_URL
