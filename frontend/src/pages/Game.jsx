@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { GameSocket } from '../socket'
-import Header        from '../components/Header'
+import Header from '../components/Header'
 import { ScoreRow } from '../components/ScoreBoard'
-import GameBoard     from '../components/GameBoard'
-import GameResult    from './GameResult'
-import ConfirmModal  from '../components/ConfirmModal'
+import GameBoard from '../components/GameBoard'
+import GameResult from './GameResult'
+import ConfirmModal from '../components/ConfirmModal'
 
 export default function Game({ navigate, gameData, setGameData }) {
   const { roomId, playerId, playerName } = gameData || {}
 
-  const [game, setGame]                 = useState(gameData?.gameState || null)
+  const [game, setGame] = useState(gameData?.gameState || null)
   const isHost = game?.players?.[0]?.player_id === playerId
   const [disconnectedPlayer, setDisconnectedPlayer] = useState(null)
-  const [socketState, setSocketState]   = useState('connecting')
+  const [socketState, setSocketState] = useState('connecting')
   const [showLeaveModal, setShowLeaveModal] = useState(false)
-  const [pendingMove, setPendingMove]   = useState(false)
+  const [pendingMove, setPendingMove] = useState(false)
   const socketRef = useRef(null)
 
   useEffect(() => {
@@ -54,8 +54,8 @@ export default function Game({ navigate, gameData, setGameData }) {
     setPendingMove(true)
     socketRef.current?.sendMove(wallId)
   }, [pendingMove])
-  
-  const handleLeaveClick   = useCallback(() => setShowLeaveModal(true), [])
+
+  const handleLeaveClick = useCallback(() => setShowLeaveModal(true), [])
   const handleLeaveConfirm = useCallback(() => {
     setShowLeaveModal(false)
     socketRef.current?.sendLeaveRoom()
@@ -72,10 +72,10 @@ export default function Game({ navigate, gameData, setGameData }) {
   }
 
   const { players = [], current_turn, status } = game
-  const isMyTurn   = current_turn === playerId && status === 'playing'
-  const canMove    = isMyTurn && !pendingMove
+  const isMyTurn = current_turn === playerId && status === 'playing'
+  const canMove = isMyTurn && !pendingMove
   const turnPlayer = players.find(p => p.player_id === current_turn)
-  const turnLabel  = status === 'playing'
+  const turnLabel = status === 'playing'
     ? isMyTurn ? 'Your turn' : `${turnPlayer?.name || 'Opponent'}'s turn`
     : status === 'finished' ? 'Game over' : ''
 
