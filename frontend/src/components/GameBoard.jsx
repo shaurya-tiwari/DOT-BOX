@@ -25,8 +25,9 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
 
   // Board fills as much screen as possible — large grids need every pixel
   const PADDING  = 12
-  const maxW     = Math.min(window.innerWidth  - 16, 720)
-  const maxH     = Math.min(window.innerHeight * 0.72, 720)
+  const isMobile = window.innerWidth <= 480
+  const maxW     = Math.min(window.innerWidth  - (isMobile ? 48 : 16), 720)
+  const maxH     = Math.min(window.innerHeight * (isMobile ? 0.55 : 0.72), 720)
   const CELL     = Math.max(18, Math.min(maxW / (n - 1), maxH / (n - 1)))
   const SVG_SIZE = CELL * (n - 1) + PADDING * 2
 
