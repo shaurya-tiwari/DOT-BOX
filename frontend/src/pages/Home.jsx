@@ -46,11 +46,12 @@ export default function Home({ navigate }) {
       {/* Server Status Indicator */}
       <div style={{
         position: 'fixed',
-        bottom: '8px',
-        left: '12px',
-        fontSize: '0.65rem',
-        color: 'var(--muted)',
-        opacity: 0.7,
+        bottom: '24px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        fontSize: '0.85rem',
+        fontWeight: '500',
+        color: 'var(--ink-muted)',
         pointerEvents: 'none'
       }}>
         {serverStatus}
