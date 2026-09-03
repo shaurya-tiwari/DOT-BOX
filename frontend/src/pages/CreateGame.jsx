@@ -58,7 +58,7 @@ export default function CreateGame({ navigate }) {
           <input
             id="input-name-create"
             className={`input ${error && !name.trim() ? 'input-error' : ''}`}
-            placeholder="e.g. Aashish"
+            placeholder="Enter your name"
             value={name}
             maxLength={20}
             onChange={e => { setName(e.target.value); setError('') }}

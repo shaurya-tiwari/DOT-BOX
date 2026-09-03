@@ -24,22 +24,34 @@ export class GameSocket {
 
   connect() {
     if (this._destroyed) return this
+    // Close any existing socket before creating a new one
+    if (this.ws) {
+      this.ws.onclose = null
+      this.ws.onerror = null
+      this.ws.close()
+      this.ws = null
+    }
     this._setState('connecting')
     const url = `${WS_BASE}/ws/${this.roomId}/${this.playerId}`
     this.ws = new WebSocket(url)
 
     this.ws.onopen = () => {
+      if (this._destroyed) return
       this._retryCount = 0
       this._setState('open')
       this.onOpen()
     }
 
     this.ws.onmessage = (e) => {
+      if (this._destroyed) return
       try { this.onMessage(JSON.parse(e.data)) } catch (_) {}
     }
 
-    this.ws.onerror = (err) => {
-      console.warn('[DOT-BOX] WebSocket error', err)
+    this.ws.onerror = () => {
+      // Suppress errors on destroyed sockets (React StrictMode double-mount)
+      if (!this._destroyed) {
+        console.warn('[DOT-BOX] WebSocket error')
+      }
     }
 
     this.ws.onclose = () => {

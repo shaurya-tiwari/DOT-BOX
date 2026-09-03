@@ -21,6 +21,19 @@ export default function WaitingRoom({ navigate, gameData }) {
   const activePlayers = connectedPlayers.filter(p => p.connected)
   const [isStarting, setIsStarting] = useState(false)
 
+  // ── Browser back button protection ────────────────────────────────────────
+  useEffect(() => {
+    window.history.pushState({ dotbox: 'waiting' }, '')
+
+    const onPopState = () => {
+      window.history.pushState({ dotbox: 'waiting' }, '')
+      setShowLeaveModal(true)
+    }
+
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   useEffect(() => {
     if (!roomId || !playerId) return
 

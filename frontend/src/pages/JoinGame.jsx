@@ -46,7 +46,7 @@ export default function JoinGame({ navigate }) {
           <input
             id="input-name-join"
             className={`input ${error.includes('name') ? 'input-error' : ''}`}
-            placeholder="e.g. Rahul"
+            placeholder="Enter your name"
             value={name}
             maxLength={20}
             onChange={e => { setName(e.target.value); setError('') }}

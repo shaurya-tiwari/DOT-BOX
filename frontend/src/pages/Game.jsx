@@ -21,6 +21,32 @@ export default function Game({ navigate, gameData, setGameData }) {
 
   const socketRef = useRef(null)
 
+  // ── Browser back button + tab close protection ────────────────────────────
+  useEffect(() => {
+    // Push a dummy history entry so back button stays on this page
+    window.history.pushState({ dotbox: 'game' }, '')
+
+    const onPopState = (e) => {
+      // User pressed browser back — push state again and show our modal
+      window.history.pushState({ dotbox: 'game' }, '')
+      setModal('leave')
+    }
+
+    const onBeforeUnload = (e) => {
+      e.preventDefault()
+      e.returnValue = ''  // Chrome requires this
+    }
+
+    window.addEventListener('popstate', onPopState)
+    window.addEventListener('beforeunload', onBeforeUnload)
+
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+  }, [])
+
+  // ── Socket connection ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!roomId || !playerId) return
 

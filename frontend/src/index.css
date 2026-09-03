@@ -3,7 +3,8 @@
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
   --bg:       #F5F0E8;
-  --bg-card:  #EDE8DF;
+  --bg-card:  rgba(237,232,223,0.75);
+  --bg-card-solid: #EDE8DF;
   --ink:      #1A1A1A;
   --ink-muted:#6B6560;
   --warm:     #5C4033;
@@ -11,13 +12,14 @@
   --accent:   #D4874E;
   --accent-h: #C0733C;
   --muted:    #C8C0B0;
-  --border:   #D8D0C4;
+  --border:   rgba(216,208,196,0.7);
   --white:    #fdeacc;
-  --shadow:   0 4px 24px rgba(26, 26, 26, 0.08);
-  --shadow-lg:0 12px 48px rgba(26, 26, 26, 0.14);
-  --radius:   14px;
-  --radius-sm:8px;
-  --transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow:   0 4px 24px rgba(26, 26, 26, 0.06);
+  --shadow-lg:0 16px 56px rgba(26, 26, 26, 0.12);
+  --shadow-glow: 0 0 20px rgba(212,135,78,0.15);
+  --radius:   16px;
+  --radius-sm:10px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
@@ -35,6 +37,7 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23C8C0B0' fill-opacity='0.08'%3E%3Ccircle cx='20' cy='20' r='1'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 /* ── Typography ────────────────────────────────────────────────────────────── */
@@ -96,6 +99,7 @@ body {
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
+  position: relative;
 }
 
 /* Turn indicator — compact single line */
@@ -103,29 +107,38 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.375rem 0.75rem;
+  padding: 0.4rem 1rem;
   border-radius: 999px;
   background: var(--bg-card);
+  backdrop-filter: blur(12px);
   border: 1.5px solid var(--border);
   font-size: 0.8125rem;
   font-weight: 600;
   width: fit-content;
   margin: 0 auto;
+  transition: all 0.4s ease;
+}
+.turn-line.my-turn {
+  background: rgba(34,197,94,0.1);
+  border-color: rgba(34,197,94,0.3);
+  box-shadow: 0 0 16px rgba(34,197,94,0.12);
 }
 .turn-dot-small {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--muted);
-  transition: background 0.3s;
+  transition: all 0.3s;
 }
 .turn-dot-small.my {
-  background: var(--accent);
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34,197,94,0.5);
   animation: blink 1s ease-in-out infinite;
 }
 .turn-dot-small.their { background: var(--muted); }
-.turn-label { color: var(--ink); }
+.turn-label { color: var(--ink); transition: color 0.3s; }
+.turn-line.my-turn .turn-label { color: #166534; font-weight: 700; }
 
 /* Main 3-column area */
 .game-main {
@@ -205,11 +218,17 @@ body {
 /* ── Card ──────────────────────────────────────────────────────────────────── */
 .card {
   background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 2rem;
   width: 100%;
   box-shadow: var(--shadow);
+  transition: box-shadow 0.3s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-lg);
 }
 
 /* ── Buttons ───────────────────────────────────────────────────────────────── */
@@ -234,15 +253,33 @@ body {
 .btn-primary {
   background: var(--ink);
   color: var(--bg);
+  position: relative;
+  overflow: hidden;
 }
-.btn-primary:hover  { background: #333; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(26,26,26,0.2); }
-.btn-primary:active { transform: translateY(0); }
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+.btn-primary:hover  { background: #2a2a2a; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,26,26,0.25); }
+.btn-primary:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(26,26,26,0.15); }
 
 .btn-accent {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-h) 100%);
   color: var(--white);
+  position: relative;
+  overflow: hidden;
 }
-.btn-accent:hover  { background: var(--accent-h); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,135,78,0.35); }
+.btn-accent::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+  pointer-events: none;
+}
+.btn-accent:hover  { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(212,135,78,0.35), var(--shadow-glow); }
 .btn-accent:active { transform: translateY(0); }
 
 .btn-ghost {
@@ -358,14 +395,23 @@ body {
   border: 1.5px solid var(--border);
   border-top-width: 3px;
   background: var(--bg-card);
-  transition: all var(--transition);
+  backdrop-filter: blur(8px);
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.score-row-cell.active { box-shadow: 0 0 0 2px var(--ink); background: var(--bg); }
+.score-row-cell.active {
+  box-shadow: 0 0 0 2px var(--ink), 0 4px 12px rgba(26,26,26,0.08);
+  background: var(--bg);
+  transform: translateY(-2px);
+}
 .score-row-num {
   font-size: 1.5rem;
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.03em;
+  transition: transform 0.2s ease;
+}
+.score-row-cell.active .score-row-num {
+  transform: scale(1.1);
 }
 .score-row-name {
   font-size: 0.6rem;
@@ -438,10 +484,11 @@ body {
   height: 10px;
   background: var(--ink);
   border-radius: 50%;
-  margin: 0 2px;
+  margin: 0 3px;
   animation: pulse-dot 2s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(26,26,26,0.15);
 }
-.logo-dot:nth-child(2) { animation-delay: 0.3s; background: var(--accent); }
+.logo-dot:nth-child(2) { animation-delay: 0.3s; background: var(--accent); box-shadow: 0 0 12px rgba(212,135,78,0.3); }
 .logo-dot:nth-child(3) { animation-delay: 0.6s; }
 
 @keyframes pulse-dot {
@@ -605,8 +652,10 @@ body {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 0.75rem 0;
+  padding: 0.75rem 0.5rem;
   gap: 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: all 0.4s ease;
 }
 
 /* ── Game board SVG ────────────────────────────────────────────────────────── */
@@ -631,15 +680,25 @@ body {
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--border);
   background: var(--bg);
-  transition: all 0.3s ease;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: slideUp 0.3s ease forwards;
 }
 .player-slot.filled {
   border-color: var(--ink);
   background: var(--bg-card);
+  backdrop-filter: blur(8px);
+}
+.player-slot.filled:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(26,26,26,0.08);
 }
 .player-slot.empty {
-  opacity: 0.5;
+  opacity: 0.45;
   border-style: dashed;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .player-avatar {
   width: 40px;
@@ -652,6 +711,11 @@ body {
   font-size: 1.1rem;
   flex-shrink: 0;
   color: var(--white);
+  box-shadow: 0 2px 8px rgba(26,26,26,0.15);
+  transition: transform 0.2s ease;
+}
+.player-slot.filled:hover .player-avatar {
+  transform: scale(1.08);
 }
 .player-avatar.p1 { background: var(--warm); }
 .player-avatar.p2 { background: var(--cool); }
@@ -736,14 +800,28 @@ body {
 .result-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(245, 240, 232, 0.92);
-  backdrop-filter: blur(10px);
+  background: rgba(245, 240, 232, 0.88);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
   padding: 1.5rem;
-  animation: fadeIn 0.3s ease forwards;
+  animation: overlayIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes overlayIn {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(20px) saturate(1.2); }
+}
+.result-overlay .card {
+  animation: resultCardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.1s;
+  opacity: 0;
+}
+@keyframes resultCardIn {
+  from { opacity: 0; transform: scale(0.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 /* ── Toast ─────────────────────────────────────────────────────────────────── */
