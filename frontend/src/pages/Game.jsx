@@ -93,7 +93,7 @@ export default function Game({ navigate, gameData, setGameData }) {
     <div className="page-game-root fade-in">
       {/* ── Top bar ── */}
       <div className="game-top">
-        <Header roomId={roomId} playerCount={players.length} isMyTurn={isMyTurn} />
+        <Header isMyTurn={isMyTurn} />
 
         {socketState === 'reconnecting' && (
           <div className="reconnect-banner">🔄 Reconnecting…</div>

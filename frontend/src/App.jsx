@@ -27,9 +27,9 @@ export default function App() {
       {view === 'home'    && <Home navigate={navigate} />}
       {view === 'create'  && <CreateGame navigate={navigate} />}
       {view === 'join'    && <JoinGame navigate={navigate} />}
-      {view === 'waiting' && <WaitingRoom navigate={navigate} gameData={gameData} />}
-      {view === 'game'    && <Game navigate={navigate} gameData={gameData} setGameData={setGameData} />}
-      {view === 'result'  && <GameResult navigate={navigate} gameData={gameData} />}
+      {view === 'waiting' && (gameData?.roomId ? <WaitingRoom navigate={navigate} gameData={gameData} /> : <Home navigate={navigate} />)}
+      {view === 'game'    && (gameData?.roomId ? <Game navigate={navigate} gameData={gameData} setGameData={setGameData} /> : <Home navigate={navigate} />)}
+      {view === 'result'  && (gameData?.roomId ? <GameResult navigate={navigate} gameData={gameData} /> : <Home navigate={navigate} />)}
     </div>
   )
 }

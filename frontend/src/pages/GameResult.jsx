@@ -1,15 +1,16 @@
 export default function GameResult({ game, playerId, playerName, isHost, onBackToLobby, onHome, inline }) {
   const winner = game?.winner
   const myPlayer = game?.players?.find(p => p.player_id === playerId)
-  const oppPlayer = game?.players?.find(p => p.player_id !== playerId)
+  // For 3+ player games, look up the actual winner by player_id
+  const winnerPlayer = game?.players?.find(p => p.player_id === winner)
 
   const isWinner = winner === playerId
   const isDraw = winner === 'draw'
 
   const emoji = isDraw ? '🤝' : isWinner ? '🏆' : '😔'
-  const title = isDraw ? "It's a draw!" : isWinner ? 'You won!' : `${oppPlayer?.name || 'Opponent'} won`
+  const title = isDraw ? "It's a draw!" : isWinner ? 'You won!' : `${winnerPlayer?.name || 'Opponent'} won`
   const subMsg = isDraw
-    ? 'Great game! Both players scored equally.'
+    ? 'Great game! Players scored equally.'
     : isWinner
       ? 'Excellent play — you captured the most boxes!'
       : 'Better luck next time!'

@@ -111,9 +111,13 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
 
             elif msg["type"] == "back_to_lobby":
                 async with lock:
-                    if game.status in ("finished", "playing"):
-                        reset_game(game)
-                        await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
+                    # Only host (first player) can send everyone back to lobby
+                    if game.players and game.players[0].player_id == player_id:
+                        if game.status in ("finished", "playing"):
+                            reset_game(game)
+                            await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
+                    else:
+                        await manager.send_personal(ws, {"type": "error", "message": "Only the host can do that"})
 
             elif msg["type"] == "start_game":
                 async with lock:
@@ -125,7 +129,11 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
             elif msg["type"] == "leave_room":
                 async with lock:
                     remove_player(game, player_id)
-                    await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
+                    # Cleanup empty rooms to prevent memory leak
+                    if not game.players:
+                        games.pop(room_id, None)
+                    else:
+                        await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
     except WebSocketDisconnect:
         manager.disconnect(ws, room_id)

@@ -7,10 +7,12 @@ export default function WaitingRoom({ navigate, gameData }) {
   const socketRef = useRef(null)
   const [copied, setCopied] = useState(false)
   const [gameStatus, setGameStatus] = useState(isInLobby ? 'lobby' : 'waiting')
-  const [maxPlayers, setMaxPlayers] = useState(gameData?.maxPlayers || 2)
-  const [connectedPlayers, setConnectedPlayers] = useState([
-    { player_id: playerId, player_name: playerName, connected: true }
-  ])
+  const [maxPlayers, setMaxPlayers] = useState(gameData?.maxPlayers || gameData?.gameState?.max_players || 2)
+  // When returning to lobby, init from gameState so player list doesn't flash
+  const initPlayers = gameData?.gameState?.players?.length
+    ? gameData.gameState.players.map(p => ({ player_id: p.player_id, player_name: p.name, connected: p.connected }))
+    : [{ player_id: playerId, player_name: playerName, connected: true }]
+  const [connectedPlayers, setConnectedPlayers] = useState(initPlayers)
   const [showJoinedToast, setShowJoinedToast] = useState(null)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
 
@@ -95,14 +97,14 @@ export default function WaitingRoom({ navigate, gameData }) {
   const headerTitle = isLobby
     ? '🏠 Room Lobby'
     : waitingForMore
-      ? 'Waiting for opponent…'
+      ? 'Waiting for players…'
       : 'Starting game…'
 
   const headerSub = isLobby
-    ? 'Both players connected. Ready to play again?'
+    ? (maxPlayers === 2 ? 'Both players connected. Ready to play again?' : 'All players connected. Ready to play again?')
     : waitingForMore
-      ? 'Share this room code with your friend'
-      : 'Both players connected! Get ready.'
+      ? 'Share this room code with your friends'
+      : (maxPlayers === 2 ? 'Both players connected! Get ready.' : 'All players connected! Get ready.')
 
   return (
     <div className="page fade-in">

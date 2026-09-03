@@ -655,6 +655,9 @@ body {
 }
 .player-avatar.p1 { background: var(--warm); }
 .player-avatar.p2 { background: var(--cool); }
+.player-avatar.p3 { background: #2D6A4F; }
+.player-avatar.p4 { background: #6B3FA0; }
+.player-avatar.p5 { background: #C0392B; }
 .player-slot-name {
   font-weight: 600;
   font-size: 0.9375rem;
