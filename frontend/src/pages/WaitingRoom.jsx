@@ -36,7 +36,9 @@ export default function WaitingRoom({ navigate, gameData }) {
 
         if (g.status === 'playing') {
           setIsStarting(false)
-          navigate('game', { gameState: g })
+          // Compute isHost from live game data — NOT from React state which may be stale
+          const amHost = g.players?.[0]?.player_id === playerId
+          navigate('game', { gameState: g, isHost: amHost })
         }
 
       } else if (msg.type === 'player_connected') {
