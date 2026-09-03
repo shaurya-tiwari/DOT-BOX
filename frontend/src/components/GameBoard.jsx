@@ -176,11 +176,14 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
         const fill       = playerFillMap[pid] || 'rgba(150,150,150,0.12)'
         const color      = playerColorMap[pid] || '#888'
         const name       = playerNameMap[pid] || '?'
-        // Aggressive truncate: show max 2 chars on small cells, 3 on bigger
+        // Truncate — emojis count as 1 char each via Array.from
         const maxChars   = CELL < 30 ? 1 : CELL < 45 ? 2 : 3
-        const displayName = name.length > maxChars ? name.slice(0, maxChars) : name
-        // Font scales with cell — much smaller so it stays inside
-        const fontSize   = Math.max(6, Math.min(CELL * 0.32, 13))
+        const chars = Array.from(name)
+        const displayName = chars.length > maxChars ? chars.slice(0, maxChars).join('') : name
+        const displayLen  = Array.from(displayName).length
+        // Font fits inside box: ~60% of CELL for 1 char, shrink for more chars
+        const baseFontSize = CELL * 0.55
+        const fontSize = Math.max(6, Math.min(baseFontSize / Math.max(1, displayLen * 0.7), CELL * 0.6))
         return (
           <g key={boxId} className="box-pop">
             <rect

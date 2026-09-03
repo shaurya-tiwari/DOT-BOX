@@ -146,7 +146,7 @@ export default function WaitingRoom({ navigate, gameData }) {
             return (
               <div key={i} className={`player-slot ${p ? (p.connected ? 'filled' : 'empty') : 'empty'}`}>
                 <div className={`player-avatar p${i + 1}`}>
-                  {p ? p.player_name[0].toUpperCase() : '?'}
+                  {p ? Array.from(p.player_name)[0]?.toUpperCase() || '?' : '?'}
                 </div>
                 <div>
                   <div className="player-slot-name">
