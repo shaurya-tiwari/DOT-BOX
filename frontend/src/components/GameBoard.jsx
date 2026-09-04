@@ -1,21 +1,22 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { wallIdFromDots, isAdjacent } from '../utils/board'
 
-// Player color palette — up to 5 players
-const P_COLORS      = ['#5C4033', '#2C4A5C', '#2D6A4F', '#6B3FA0', '#C0392B']
+// Player color palette — up to 6 players
+const P_COLORS      = ['#5C4033', '#2C4A5C', '#2D6A4F', '#6B3FA0', '#C0392B', '#B5651D']
 const P_FILLS       = [
   'rgba(92,64,51,0.15)',
   'rgba(44,74,92,0.15)',
   'rgba(45,106,79,0.15)',
   'rgba(107,63,160,0.15)',
   'rgba(192,57,43,0.15)',
+  'rgba(181,101,29,0.15)',
 ]
-const P_LINE_COLORS = ['#7A5240', '#3A6080', '#3D8F68', '#8A55C0', '#D44F40']
+const P_LINE_COLORS = ['#7A5240', '#3A6080', '#3D8F68', '#8A55C0', '#D44F40', '#C8762A']
 
 // Tracks newly-placed wall IDs for entry animation
 const ANIM_DURATION = 140 // ms
 
-export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
+export default function GameBoard({ game, playerId, isMyTurn, onMove, labelMap }) {
   const svgRef   = useRef(null)
   const [drag, setDrag] = useState(null) // { startR, startC, curX, curY }
   const [newWalls, setNewWalls] = useState(new Set()) // wall IDs that are still animating in
@@ -176,10 +177,11 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
         const fill       = playerFillMap[pid] || 'rgba(150,150,150,0.12)'
         const color      = playerColorMap[pid] || '#888'
         const name       = playerNameMap[pid] || '?'
-        // Truncate — emojis count as 1 char each via Array.from
+        // If labelMap provided (local mode), use it; otherwise truncate player name
         const maxChars   = CELL < 30 ? 1 : CELL < 45 ? 2 : 3
-        const chars = Array.from(name)
-        const displayName = chars.length > maxChars ? chars.slice(0, maxChars).join('') : name
+        const rawLabel   = labelMap ? (labelMap[pid] || '?') : name
+        const chars = Array.from(rawLabel)
+        const displayName = chars.length > maxChars ? chars.slice(0, maxChars).join('') : rawLabel
         const displayLen  = Array.from(displayName).length
         // Font fits inside box: ~60% of CELL for 1 char, shrink for more chars
         const baseFontSize = CELL * 0.55

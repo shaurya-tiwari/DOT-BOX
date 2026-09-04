@@ -36,6 +36,10 @@ export default function Home({ navigate }) {
         <button id="btn-join" className="btn btn-ghost" onClick={() => navigate('join')}>
           Enter Room Code
         </button>
+        <div className="divider">or</div>
+        <button id="btn-local" className="btn btn-accent" onClick={() => navigate('local-setup')}>
+          🎮 Play Locally (2–6 players)
+        </button>
       </div>
 
       {/* Footer hint */}

@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import Home from './pages/Home'
+import Home       from './pages/Home'
 import CreateGame from './pages/CreateGame'
-import JoinGame from './pages/JoinGame'
+import JoinGame   from './pages/JoinGame'
 import WaitingRoom from './pages/WaitingRoom'
-import Game from './pages/Game'
+import Game       from './pages/Game'
 import GameResult from './pages/GameResult'
+import LocalSetup from './pages/LocalSetup'
+import LocalGame  from './pages/LocalGame'
 
 export default function App() {
   const [view, setView] = useState('home')
@@ -30,6 +32,8 @@ export default function App() {
       {view === 'waiting' && (gameData?.roomId ? <WaitingRoom navigate={navigate} gameData={gameData} /> : <Home navigate={navigate} />)}
       {view === 'game'    && (gameData?.roomId ? <Game navigate={navigate} gameData={gameData} setGameData={setGameData} /> : <Home navigate={navigate} />)}
       {view === 'result'  && (gameData?.roomId ? <GameResult navigate={navigate} gameData={gameData} /> : <Home navigate={navigate} />)}
+      {view === 'local-setup' && <LocalSetup navigate={navigate} />}
+      {view === 'local-game'  && <LocalGame navigate={navigate} gameData={gameData} />}
     </div>
   )
 }
