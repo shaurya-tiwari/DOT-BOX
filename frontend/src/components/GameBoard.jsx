@@ -4,11 +4,11 @@ import { wallIdFromDots, isAdjacent } from '../utils/board'
 // Player color palette — up to 5 players
 const P_COLORS      = ['#5C4033', '#2C4A5C', '#2D6A4F', '#6B3FA0', '#C0392B']
 const P_FILLS       = [
-  'rgba(92,64,51,0.15)',
-  'rgba(44,74,92,0.15)',
-  'rgba(45,106,79,0.15)',
-  'rgba(107,63,160,0.15)',
-  'rgba(192,57,43,0.15)',
+  'rgba(230, 103, 45, 0.85)',
+  'rgba(56, 138, 188, 0.67)',
+  'rgba(47, 153, 105, 0.84)',
+  'rgba(132, 77, 200, 0.38)',
+  'rgba(204, 47, 29, 0.76)',
 ]
 const P_LINE_COLORS = ['#7A5240', '#3A6080', '#3D8F68', '#8A55C0', '#D44F40']
 
