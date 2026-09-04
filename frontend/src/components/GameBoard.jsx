@@ -19,6 +19,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
   const svgRef   = useRef(null)
   const [drag, setDrag] = useState(null) // { startR, startC, curX, curY }
   const [newWalls, setNewWalls] = useState(new Set()) // wall IDs that are still animating in
+  const [pendingWalls, setPendingWalls] = useState(new Set()) // optimistic walls awaiting server confirm
   const prevWallsRef = useRef(new Set())
 
   const { grid_size: n = 4, walls = [], wall_owners = {}, boxes = {}, players = [] } = game
@@ -31,7 +32,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
   const CELL     = Math.max(18, Math.min(maxW / (n - 1), maxH / (n - 1)))
   const SVG_SIZE = CELL * (n - 1) + PADDING * 2
 
-  // Track newly-added walls for draw-in animation
+  // Track newly-added walls for draw-in animation + clean up pending walls
   useEffect(() => {
     const currentSet = new Set(walls)
     const added = new Set()
@@ -39,6 +40,16 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
       if (!prevWallsRef.current.has(w)) added.add(w)
     }
     prevWallsRef.current = currentSet
+
+    // Remove confirmed walls from pending (optimistic → real)
+    setPendingWalls(prev => {
+      const next = new Set(prev)
+      for (const w of prev) {
+        if (currentSet.has(w)) next.delete(w)
+      }
+      return next.size !== prev.size ? next : prev
+    })
+
     if (added.size > 0) {
       setNewWalls(added)
       const t = setTimeout(() => setNewWalls(new Set()), ANIM_DURATION + 50)
@@ -76,7 +87,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     if (!isMyTurn) return
     const { x, y } = toSVGCoords(e)
     const dot = nearestDot(x, y)
-    if (dot && dot.d < CELL * 0.45) {
+    if (dot && dot.d < CELL * 0.65) {
       setDrag({ startR: dot.r, startC: dot.c, curX: x, curY: y })
       e.currentTarget.setPointerCapture(e.pointerId)
     }
@@ -94,12 +105,13 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     const end = nearestDot(x, y)
     if (end && isAdjacent(drag.startR, drag.startC, end.r, end.c)) {
       const wallId = wallIdFromDots(drag.startR, drag.startC, end.r, end.c)
-      if (wallId && !walls.includes(wallId)) {
+      if (wallId && !walls.includes(wallId) && !pendingWalls.has(wallId)) {
+        setPendingWalls(prev => new Set([...prev, wallId]))
         onMove(wallId)
       }
     }
     setDrag(null)
-  }, [drag, walls, onMove])
+  }, [drag, walls, pendingWalls, onMove])
 
   // Player color/fill/name lookup by player_id
   const playerColorMap = {}
@@ -124,7 +136,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
   let snapTarget = null
   if (drag) {
     const snap = nearestDot(drag.curX, drag.curY)
-    if (snap && snap.d < CELL * 0.6 && isAdjacent(drag.startR, drag.startC, snap.r, snap.c)) {
+    if (snap && snap.d < CELL * 0.75 && isAdjacent(drag.startR, drag.startC, snap.r, snap.c)) {
       const p = dotPos(snap.r, snap.c)
       previewX2 = p.x
       previewY2 = p.y
@@ -228,6 +240,26 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
         )
       })}
 
+      {/* ── Pending walls (optimistic — shown until server confirms) ── */}
+      {Array.from(pendingWalls).filter(w => !wallsSet.has(w)).map(wallId => {
+        const [orient, r, c] = wallId.split('-')
+        const p1 = dotPos(Number(r), Number(c))
+        const p2 = orient === 'h'
+          ? dotPos(Number(r), Number(c) + 1)
+          : dotPos(Number(r) + 1, Number(c))
+        const sw = Math.max(2.5, Math.min(4, CELL * 0.07))
+        return (
+          <line
+            key={`pending-${wallId}`}
+            x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+            stroke={myColor}
+            strokeWidth={sw}
+            strokeLinecap="round"
+            opacity={0.55}
+          />
+        )
+      })}
+
       {/* ── Drag preview line ── */}
       {drag && (
         <line
@@ -243,7 +275,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
         />
       )}
 
-      {/* ── Dots ── */}
+      {/* ── Dots (with invisible hitbox circles for easier touch) ── */}
       {Array.from({ length: n }, (_, r) =>
         Array.from({ length: n }, (_, c) => {
           const { x, y } = dotPos(r, c)
@@ -252,14 +284,20 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
           // Scale dot radius: very small, precise dots
           const dotR      = Math.max(1.5, Math.min(3,   CELL * 0.065))
           const dotActive = Math.max(2.5, Math.min(4.5, CELL * 0.10))
+          // Invisible hitbox for easier touch — much bigger than visible dot
+          const hitR      = Math.max(12, CELL * 0.35)
           return (
-            <circle
-              key={`${r}-${c}`}
-              cx={x} cy={y}
-              r={isStart || isSnapEnd ? dotActive : dotR}
-              fill={isStart ? myColor : 'var(--ink)'}
-              style={{ transition: 'r 0.1s ease' }}
-            />
+            <g key={`${r}-${c}`}>
+              {/* Invisible touch hitbox */}
+              <circle cx={x} cy={y} r={hitR} fill="transparent" />
+              {/* Visible dot */}
+              <circle
+                cx={x} cy={y}
+                r={isStart || isSnapEnd ? dotActive : dotR}
+                fill={isStart ? myColor : 'var(--ink)'}
+                style={{ transition: 'r 0.1s ease' }}
+              />
+            </g>
           )
         })
       )}
