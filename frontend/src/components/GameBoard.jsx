@@ -76,8 +76,18 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
   function toSVGCoords(e) {
     const svg  = svgRef.current
     const rect = svg.getBoundingClientRect()
-    const cx   = e.touches ? e.touches[0].clientX : e.clientX
-    const cy   = e.touches ? e.touches[0].clientY : e.clientY
+    // On pointerup/touchend, e.touches is empty — use changedTouches instead
+    let cx, cy
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      cx = e.changedTouches[0].clientX
+      cy = e.changedTouches[0].clientY
+    } else if (e.touches && e.touches.length > 0) {
+      cx = e.touches[0].clientX
+      cy = e.touches[0].clientY
+    } else {
+      cx = e.clientX
+      cy = e.clientY
+    }
     const scaleX = SVG_SIZE / rect.width
     const scaleY = SVG_SIZE / rect.height
     return { x: (cx - rect.left) * scaleX, y: (cy - rect.top) * scaleY }
@@ -102,8 +112,11 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
   const onPointerUp = useCallback((e) => {
     if (!drag) return
     const { x, y } = toSVGCoords(e)
+    // Guard: if coordinates are invalid (touch edge case), cancel
+    if (!isFinite(x) || !isFinite(y)) { setDrag(null); return }
     const end = nearestDot(x, y)
-    if (end && isAdjacent(drag.startR, drag.startC, end.r, end.c)) {
+    // Generous snap radius on release — CELL * 0.85 is very forgiving for touch
+    if (end && end.d < CELL * 0.85 && isAdjacent(drag.startR, drag.startC, end.r, end.c)) {
       const wallId = wallIdFromDots(drag.startR, drag.startC, end.r, end.c)
       if (wallId && !walls.includes(wallId) && !pendingWalls.has(wallId)) {
         setPendingWalls(prev => new Set([...prev, wallId]))
