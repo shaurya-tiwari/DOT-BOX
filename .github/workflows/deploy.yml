@@ -23,8 +23,9 @@ jobs:
           pip install -r backend/requirements.txt
           pip install ruff
 
-      - name: Lint all Python files
-        run: ruff check backend/ --exclude backend/.venv
+      # Ruff scans ALL .py files → syntax errors, bad imports, unused vars, etc.
+      - name: Check all Python files (Ruff)
+        run: ruff check backend/ --config backend/ruff.toml
 
       - name: Check backend imports
         run: |
@@ -39,7 +40,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 

@@ -1,0 +1,15 @@
+# Ruff config for DOT-BOX backend
+# Skip rules that require code modernisation without affecting correctness
+[lint]
+ignore = [
+  "I001",   # import sorting — cosmetic only
+  "UP035",  # deprecated typing imports (Dict, Tuple) — safe to keep
+  "UP006",  # use lowercase dict/list — safe to keep
+  "UP007",  # use X | None instead of Optional — safe to keep
+  "UP045",  # use X | None — same as UP007
+  "BLE001", # broad exception — intentional in broadcast/send_personal
+  "S110",   # try-except-pass — intentional silent failure in send_personal
+  "SIM102", # nested if — readability preference, no logic change
+  "RUF059", # unused unpacked var — completed is intentionally ignored
+  "E501",   # line too long
+]
