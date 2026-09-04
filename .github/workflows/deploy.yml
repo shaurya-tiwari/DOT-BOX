@@ -57,12 +57,10 @@ jobs:
         working-directory: frontend
 
   deploy:
-    name: Deploy to Render
+    name: ✅ Ready to Deploy
     runs-on: ubuntu-latest
     needs: [check-backend, check-frontend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Trigger Render Deploy
-        run: |
-          curl --fail -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
-          echo "Deployed!"
+      - name: All checks passed
+        run: echo "All checks passed! Render will auto-deploy."
