@@ -16,6 +16,7 @@ function buildGame(playerCount, gridSize) {
     grid_size: gridSize,
     players,
     walls: [],
+    wall_owners: {},
     boxes: {},
     status: 'playing',
     current_turn: players[0].player_id,
@@ -84,9 +85,12 @@ function applyMove(game, wallId) {
     winner = topPlayers.length === 1 ? topPlayers[0].player_id : 'draw'
   }
 
+  const newWallOwners = { ...game.wall_owners, [wallId]: game.current_turn }
+
   return {
     ...game,
     walls: newWalls,
+    wall_owners: newWallOwners,
     boxes: newBoxes,
     players: newPlayers,
     current_turn: nextTurn,
@@ -131,7 +135,7 @@ export default function LocalGame({ navigate, gameData }) {
           borderColor: PLAYER_COLORS[currentIdx] || 'var(--ink)',
         }}>
           <div className="turn-dot" style={{ background: 'rgba(255,255,255,0.7)', animation: 'blink 1s ease-in-out infinite' }} />
-          {currentPlayer?.name}&apos;s Turn
+          {currentPlayer?.name}'s Turn
         </div>
       )}
       {game.status === 'finished' && (
