@@ -122,13 +122,28 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     // Guard: if coordinates are invalid (touch edge case), cancel
     if (!isFinite(x) || !isFinite(y)) { setDrag(null); lastSnapRef.current = null; return }
     const end = nearestDot(x, y)
+    
+    // 1. Explicit Cancel: If user drags back to the start dot, they want to cancel.
+    if (end && end.r === drag.startR && end.c === drag.startC && end.d < CELL * 0.85) {
+      lastSnapRef.current = null
+      setDrag(null)
+      return
+    }
+
     // Try exact release position first, then fall back to last remembered snap
     let target = null
     if (end && end.d < CELL * 0.85 && isAdjacent(drag.startR, drag.startC, end.r, end.c)) {
       target = end
-    } else if (lastSnapRef.current && isAdjacent(drag.startR, drag.startC, lastSnapRef.current.r, lastSnapRef.current.c)) {
-      target = lastSnapRef.current
+    } else if (lastSnapRef.current) {
+      // 2. Overshoot limit: Only use lastSnap if the release is reasonably close 
+      // (prevents "infinite sticky" bug if wandering across the board)
+      const snapPos = dotPos(lastSnapRef.current.r, lastSnapRef.current.c)
+      const distToSnap = Math.hypot(x - snapPos.x, y - snapPos.y)
+      if (distToSnap < CELL * 1.5) {
+        target = lastSnapRef.current
+      }
     }
+    
     if (target) {
       const wallId = wallIdFromDots(drag.startR, drag.startC, target.r, target.c)
       if (wallId && !walls.includes(wallId) && !pendingWalls.has(wallId)) {
@@ -138,7 +153,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     }
     lastSnapRef.current = null
     setDrag(null)
-  }, [drag, walls, pendingWalls, onMove])
+  }, [drag, walls, pendingWalls, onMove, CELL])
 
   // Player color/fill/name lookup by player_id
   const playerColorMap = {}
