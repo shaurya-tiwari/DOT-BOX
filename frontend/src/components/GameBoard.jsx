@@ -164,7 +164,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
       width={SVG_SIZE}
       height={SVG_SIZE}
       viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
-      style={{ touchAction: 'none', cursor: isMyTurn ? 'crosshair' : 'default', overflow: 'visible', userSelect: 'none', WebkitUserSelect: 'none' }}
+      style={{ touchAction: 'pinch-zoom', cursor: isMyTurn ? 'crosshair' : 'default', overflow: 'visible', userSelect: 'none', WebkitUserSelect: 'none' }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
