@@ -1,71 +1,124 @@
-# 🎯 Dots & Boxes — Real-Time Multiplayer Game
+<div align="center">
 
-A minimal, real-time multiplayer implementation of the classic **Dots & Boxes** game built with **React (Vite + Tailwind CSS)** and **FastAPI (Python WebSockets)**.
+# 🔴 ⚫ ⚪  DOT-BOX
+
+### *The nostalgic pencil-and-paper game — now online, real-time, multiplayer.*
+
+> Connect the dots. Draw the lines. Steal the boxes. Outsmart your friends.
+
+<br/>
+
+[![Play Now](https://img.shields.io/badge/▶%20PLAY%20NOW-dot--box--frontend.onrender.com-D4874E?style=for-the-badge&logoColor=white)](https://dot-box-frontend.onrender.com)
+
+<br/>
+
+![DOT-BOX Game](https://dot-box-frontend.onrender.com/icon-512.png)
+
+<br/>
+
+![React](https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![WebSockets](https://img.shields.io/badge/WebSockets-Real--Time-6B6560?style=flat-square)
+![PWA](https://img.shields.io/badge/PWA-Installable-D4874E?style=flat-square)
+![Deploy](https://img.shields.io/badge/Deployed-Render-1A1A1A?style=flat-square)
+
+</div>
 
 ---
 
-## 🏗️ Architecture & Tech Stack
+## 🎮 What is DOT-BOX?
 
-| Layer | Technology | Details |
+Remember that game you played on paper as a kid — the one with dots and lines in a notebook?
+
+**DOT-BOX brings it back.** But now it's:
+- ⚡ **Real-time** — moves sync instantly to all players
+- 👥 **Multiplayer** — 2 to 5 players in one room
+- 📱 **Installable** — works as a phone app (PWA)
+- 🌐 **No download** — just share a link and play
+
+**How to play:**
+1. Take turns drawing a line between two adjacent dots
+2. Complete the 4th side of a box → you **claim it** and get an **extra turn**
+3. Most boxes when the grid is full → **you win**
+
+---
+
+## ▶️ Play Online
+
+**No sign-up. No download. Just play.**
+
+👉 **[dot-box-frontend.onrender.com](https://dot-box-frontend.onrender.com)**
+
+> **Tip:** Share your room code with a friend and start playing in seconds.
+
+---
+
+## 📱 Install as App (PWA)
+
+Play like a native app — no browser bar, home screen icon.
+
+**Android (Chrome):**
+1. Open the site in Chrome
+2. Tap the **3-dot menu** → **"Add to Home Screen"**
+3. Tap **Install**
+
+**iOS (Safari):**
+1. Open the site in Safari
+2. Tap the **Share button** (⬆️)
+3. Tap **"Add to Home Screen"**
+
+---
+
+## 🏗️ Tech Stack
+
+| Layer | Tech | Details |
 |---|---|---|
-| **Frontend** | React 19, Vite, Tailwind CSS | Warm beige minimalist UI, mouse & touch drag engine |
-| **Backend** | FastAPI, Uvicorn, WebSockets | In-memory game state, room isolation, async locks |
-| **Transport** | Dual Transport | HTTP (room creation/join) + WebSocket (real-time gameplay) |
-| **Dev Tools** | Oxlint, Graphify | High-speed linting, architectural knowledge graph |
+| **Frontend** | React 19 + Vite | Warm beige minimalist UI |
+| **Drag Engine** | SVG + Pointer Events | Mouse & touch, optimistic rendering |
+| **Backend** | FastAPI + Uvicorn | In-memory game state, per-room async locks |
+| **Real-time** | WebSockets | Sub-50ms state sync across all players |
+| **Deploy** | Render | Frontend (static) + Backend (Python) |
+| **CI/CD** | GitHub Actions | Lint + build checks before every deploy |
+| **PWA** | manifest.json + SW | Installable, offline-capable |
 
 ---
 
-## 🚀 Quick Start (Local Setup)
+## 🚀 Local Development
 
-Clone the repository and follow the steps below to run both the backend and frontend servers locally.
+### Prerequisites
+- **Node.js** v18+ — `node -v`
+- **Python** v3.10+ — `python3 --version`
 
-### 1. Prerequisites
-- **Node.js**: v18 or higher (`node -v`)
-- **Python**: v3.10 or higher (`python3 --version`)
-
----
-
-### 2. Backend Setup (FastAPI)
+### Option A — One command (recommended)
 
 ```bash
-# Navigate to backend folder
+# From project root
+npm install && npm run dev
+```
+
+> Starts both backend and frontend together via `concurrently`.
+
+---
+
+### Option B — Manually
+
+**Terminal 1 — Backend:**
+```bash
 cd backend
-
-# Create virtual environment
-python3 -m venv venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-# .\venv\Scripts\activate
-
-# Install dependencies
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-# Start FastAPI development server
 uvicorn main:app --reload --port 8000
 ```
-> 🌐 Backend API will be available at: **http://localhost:8000**  
-> 📑 Interactive Swagger Docs: **http://localhost:8000/docs**
+> API: http://localhost:8000 | Docs: http://localhost:8000/docs
 
----
-
-### 3. Frontend Setup (React + Vite)
-
-Open a **new terminal tab/window**:
-
+**Terminal 2 — Frontend:**
 ```bash
-# Navigate to frontend folder
 cd frontend
-
-# Install npm packages
 npm install
-
-# Start Vite development server
 npm run dev
 ```
-> 🎮 Frontend UI will be available at: **http://localhost:5173**
+> Game: http://localhost:5173
 
 ---
 
@@ -74,54 +127,87 @@ npm run dev
 ```
 DOT-BOX/
 ├── backend/
-│   ├── main.py             # FastAPI app, HTTP routes & WebSocket endpoint
-│   ├── game.py             # Core game engine (box validation, scoring, turn rules)
-│   ├── models.py           # Dataclasses & Pydantic models for Game & Player
-│   ├── manager.py          # WebSocket ConnectionManager with per-room broadcast
-│   └── requirements.txt    # Python dependencies
+│   ├── main.py          # FastAPI app — HTTP routes & WebSocket endpoint
+│   ├── game.py          # Game engine — walls, boxes, scoring, turns
+│   ├── models.py        # Pydantic models — Game, Player
+│   ├── manager.py       # ConnectionManager — per-room broadcast & locks
+│   └── requirements.txt
 │
 ├── frontend/
-│   ├── src/
-│   │   ├── components/     # UI Components (GameBoard, Dot, Header, ScoreBoard, etc.)
-│   │   ├── pages/          # Screens (Home, CreateGame, JoinGame, WaitingRoom, Game, GameResult)
-│   │   ├── utils/board.js  # Grid calculation & wall/box ID helpers
-│   │   ├── api.js          # HTTP API client (create/join room)
-│   │   ├── socket.js       # WebSocket manager
-│   │   ├── App.jsx         # App view controller
-│   │   └── main.jsx        # React entrypoint
-│   ├── package.json
-│   └── vite.config.js
+│   ├── public/
+│   │   ├── manifest.json   # PWA manifest
+│   │   ├── sw.js           # Service Worker
+│   │   ├── favicon.svg     # Browser tab icon
+│   │   └── icon-*.png      # App icons (192, 512)
+│   └── src/
+│       ├── components/
+│       │   ├── GameBoard.jsx   # SVG board + drag engine
+│       │   ├── Dot.jsx         # Individual dot
+│       │   ├── Header.jsx      # Room code display
+│       │   ├── ScoreBoard.jsx  # Player scores
+│       │   └── TurnIndicator.jsx
+│       ├── pages/
+│       │   ├── Home.jsx
+│       │   ├── CreateGame.jsx
+│       │   ├── JoinGame.jsx
+│       │   ├── WaitingRoom.jsx
+│       │   ├── Game.jsx
+│       │   └── GameResult.jsx
+│       ├── utils/board.js   # Grid math, wall/box ID helpers
+│       ├── api.js           # HTTP client
+│       ├── socket.js        # WebSocket manager + reconnect
+│       └── App.jsx
 │
-├── TIMELINE.md             # 12-Phase Development Roadmap & Checklists
-├── hi.md                   # Full System Architecture & Specifications
-└── README.md               # Setup Guide
+├── .github/workflows/
+│   └── deploy.yml       # CI/CD — lint → build → deploy
+│
+├── render.yaml          # Render deployment config
+├── TIMELINE.md          # 13-phase development roadmap
+└── README.md
 ```
 
 ---
 
-## 🧭 Roadmap & Timeline
+## 🔄 CI/CD Pipeline
 
-Follow our step-by-step 12-phase development progress in [TIMELINE.md](file:///Users/shauryatiwari/Desktop/CODE/DOT%20-%20BOX%20/TIMELINE.md).
+Every push to `main` runs automatically:
+
+```
+git push
+    ↓
+① ruff check — Python lint
+② oxlint + vite build — Frontend lint & compile
+    ↓
+❌ Fail → Deploy blocked
+✅ Pass → Render auto-deploys → Live in ~60s
+```
 
 ---
 
-## 🤖 Using an AI IDE? (Antigravity, Cursor, Windsurf, Claude Code)
+## 🤖 AI IDE Setup (Antigravity / Cursor / Claude Code)
 
-> [!IMPORTANT]
-> **If you are building this project with an AI IDE / Coding Assistant:**  
-> Please install and run **Graphify** once after cloning. This generates a local architectural knowledge graph (`graphify-out/`) so your AI assistant understands the whole project structure, file connections, and design decisions accurately without hallucinations.
+If you're working on this with an AI coding assistant, run Graphify once to give it a full understanding of the codebase:
 
-### Quick Setup for AI Memory:
 ```bash
-# 1. Install Graphify (one-time global/local install)
 pip install graphifyy
-# or with uv:
-# uv tool install graphifyy
-
-# 2. Generate knowledge graph in project root
-graphify
+graphify              # builds knowledge graph
+graphify --update     # refresh after changes
 ```
 
-- 🗺️ **Visual Graph:** Open `graphify-out/graph.html` in your browser to view the interactive map.
-- 🔄 **Incremental Updates:** Whenever you finish a major phase or add new files, run `graphify --update` to refresh memory in ~2 seconds.
+Open `graphify-out/graph.html` in your browser to see the interactive architecture map.
 
+---
+
+## 📜 License
+
+MIT — free to use, fork, and remix.
+
+---
+
+<div align="center">
+
+Made with ☕ and nostalgia
+
+**[▶ Play DOT-BOX now](https://dot-box-frontend.onrender.com)**
+
+</div>
