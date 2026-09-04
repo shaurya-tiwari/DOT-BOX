@@ -21,6 +21,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
   const [newWalls, setNewWalls] = useState(new Set()) // wall IDs that are still animating in
   const [pendingWalls, setPendingWalls] = useState(new Set()) // optimistic walls awaiting server confirm
   const prevWallsRef = useRef(new Set())
+  const lastSnapRef  = useRef(null) // last valid adjacent dot the finger passed over
 
   const { grid_size: n = 4, walls = [], wall_owners = {}, boxes = {}, players = [] } = game
 
@@ -98,6 +99,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     const { x, y } = toSVGCoords(e)
     const dot = nearestDot(x, y)
     if (dot && dot.d < CELL * 0.65) {
+      lastSnapRef.current = null
       setDrag({ startR: dot.r, startC: dot.c, curX: x, curY: y })
       e.currentTarget.setPointerCapture(e.pointerId)
     }
@@ -107,22 +109,34 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     if (!drag) return
     const { x, y } = toSVGCoords(e)
     setDrag(d => ({ ...d, curX: x, curY: y }))
+    // Remember the last valid snap target — so fast swipes still register
+    const snap = nearestDot(x, y)
+    if (snap && snap.d < CELL * 0.75 && isAdjacent(drag.startR, drag.startC, snap.r, snap.c)) {
+      lastSnapRef.current = { r: snap.r, c: snap.c }
+    }
   }, [drag])
 
   const onPointerUp = useCallback((e) => {
     if (!drag) return
     const { x, y } = toSVGCoords(e)
     // Guard: if coordinates are invalid (touch edge case), cancel
-    if (!isFinite(x) || !isFinite(y)) { setDrag(null); return }
+    if (!isFinite(x) || !isFinite(y)) { setDrag(null); lastSnapRef.current = null; return }
     const end = nearestDot(x, y)
-    // Generous snap radius on release — CELL * 0.85 is very forgiving for touch
+    // Try exact release position first, then fall back to last remembered snap
+    let target = null
     if (end && end.d < CELL * 0.85 && isAdjacent(drag.startR, drag.startC, end.r, end.c)) {
-      const wallId = wallIdFromDots(drag.startR, drag.startC, end.r, end.c)
+      target = end
+    } else if (lastSnapRef.current && isAdjacent(drag.startR, drag.startC, lastSnapRef.current.r, lastSnapRef.current.c)) {
+      target = lastSnapRef.current
+    }
+    if (target) {
+      const wallId = wallIdFromDots(drag.startR, drag.startC, target.r, target.c)
       if (wallId && !walls.includes(wallId) && !pendingWalls.has(wallId)) {
         setPendingWalls(prev => new Set([...prev, wallId]))
         onMove(wallId)
       }
     }
+    lastSnapRef.current = null
     setDrag(null)
   }, [drag, walls, pendingWalls, onMove])
 
