@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔴 ⚫ ⚪  DOT-BOX
+# DOT - BOX
 
 ### *The nostalgic pencil-and-paper game — now online, real-time, multiplayer.*
 
