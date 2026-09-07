@@ -2,7 +2,13 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { wallIdFromDots, isAdjacent } from '../utils/board'
 
 // Player color palette — up to 5 players
-const P_COLORS      = ['#5C4033', '#2C4A5C', '#2D6A4F', '#6B3FA0', '#C0392B']
+const P_COLORS      = [
+  'rgb(230, 103, 45)',
+  'rgb(56, 138, 188)',
+  'rgb(47, 153, 105)',
+  'rgb(132, 77, 200)',
+  'rgb(204, 47, 29)',
+]
 const P_FILLS       = [
   'rgba(230, 103, 45, 0.85)',
   'rgba(56, 138, 188, 0.67)',
@@ -10,7 +16,13 @@ const P_FILLS       = [
   'rgba(132, 77, 200, 0.38)',
   'rgba(204, 47, 29, 0.76)',
 ]
-const P_LINE_COLORS = ['#7A5240', '#3A6080', '#3D8F68', '#8A55C0', '#D44F40']
+const P_LINE_COLORS = [
+  'rgb(230, 103, 45)',
+  'rgb(56, 138, 188)',
+  'rgb(47, 153, 105)',
+  'rgb(132, 77, 200)',
+  'rgb(204, 47, 29)',
+]
 
 // Tracks newly-placed wall IDs for entry animation
 const ANIM_DURATION = 140 // ms
