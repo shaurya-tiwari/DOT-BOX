@@ -58,9 +58,14 @@ export default function JoinGame({ navigate }) {
           <input
             id="input-room-code"
             className={`input mono ${error.includes('code') || error.includes('Room') || error.includes('6') ? 'input-error' : ''}`}
+            style={{ textTransform: 'uppercase' }}
             placeholder="ABC123"
             value={code}
             maxLength={6}
+            autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck="false"
             onChange={e => { setCode(e.target.value.toUpperCase()); setError('') }}
             onKeyDown={e => e.key === 'Enter' && handleJoin()}
           />
