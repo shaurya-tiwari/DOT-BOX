@@ -10,6 +10,7 @@ const P_FILLS       = [
   'rgba(162, 104, 232, 0.93)',
   'rgba(234, 59, 40, 0.94)',
 ]
+//  this one is correct for colors , the latest on date 7 sep 9 13 pm  by shaurya 
 const P_LINE_COLORS = ['#7A5240', '#3A6080', '#3D8F68', '#8A55C0', '#D44F40']
 
 // Tracks newly-placed wall IDs for entry animation
