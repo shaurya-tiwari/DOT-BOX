@@ -5,11 +5,6 @@ import ConfirmModal from '../components/ConfirmModal'
 export default function WaitingRoom({ navigate, gameData }) {
   const { roomId, playerId, playerName, isInLobby } = gameData || {}
 
-  // Guard: if gameData is missing (stale tab/bookmark), redirect home
-  if (!roomId || !playerId) {
-    navigate('home')
-    return null
-  }
   const socketRef = useRef(null)
   const [copied, setCopied] = useState(false)
   const [gameStatus, setGameStatus] = useState(isInLobby ? 'lobby' : 'waiting')
@@ -100,7 +95,7 @@ export default function WaitingRoom({ navigate, gameData }) {
         document.body.removeChild(textarea)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
-      } catch (_) {
+      } catch {
         // Last resort — user can manually copy the displayed code
       }
     }
@@ -133,6 +128,12 @@ export default function WaitingRoom({ navigate, gameData }) {
   }
 
   const waitingForMore = activePlayers.length < maxPlayers && !isLobby
+
+  // Guard: if gameData is missing (stale tab/bookmark), redirect home
+  if (!roomId || !playerId) {
+    navigate('home')
+    return null
+  }
 
   const headerTitle = isLobby
     ? '🏠 Room Lobby'

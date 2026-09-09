@@ -10,7 +10,7 @@ export default function Home({ navigate }) {
       try {
         await pingServer()
         if (!cancelled) setServerStatus('Connected to server')
-      } catch (_) {
+      } catch {
         if (cancelled) return
         if (attempt < 5) {
           setServerStatus('Waking up server… (this takes ~30s on first visit)')

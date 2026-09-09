@@ -6,14 +6,8 @@ import GameBoard     from '../components/GameBoard'
 import GameResult    from './GameResult'
 import ConfirmModal  from '../components/ConfirmModal'
 
-export default function Game({ navigate, gameData, setGameData }) {
+export default function Game({ navigate, gameData, _setGameData }) {
   const { roomId, playerId, playerName } = gameData || {}
-
-  // Guard: if gameData is missing (stale tab/bookmark), redirect home
-  if (!roomId || !playerId) {
-    navigate('home')
-    return null
-  }
 
   const [game, setGame]                         = useState(gameData?.gameState || null)
   // isHost passed explicitly from WaitingRoom; fallback to players[0] for reconnect
@@ -32,7 +26,7 @@ export default function Game({ navigate, gameData, setGameData }) {
     // Push a dummy history entry so back button stays on this page
     window.history.pushState({ dotbox: 'game' }, '')
 
-    const onPopState = (e) => {
+    const onPopState = (_e) => {
       // User pressed browser back — push state again and show our modal
       window.history.pushState({ dotbox: 'game' }, '')
       setModal('leave')
@@ -105,6 +99,12 @@ export default function Game({ navigate, gameData, setGameData }) {
     setModal(null)
     socketRef.current?.sendBackToLobby()
   }, [])
+
+  // Guard: if gameData is missing (stale tab/bookmark), redirect home
+  if (!roomId || !playerId) {
+    navigate('home')
+    return null
+  }
 
   if (!game) {
     return (

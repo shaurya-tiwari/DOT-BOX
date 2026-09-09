@@ -47,7 +47,7 @@ export class GameSocket {
         const msg = this._pendingQueue.shift()
         try {
           this.ws.send(JSON.stringify(msg))
-        } catch (_) {
+        } catch {
           // Put it back and stop trying
           this._pendingQueue.unshift(msg)
           break
@@ -60,7 +60,7 @@ export class GameSocket {
       let msg
       try {
         msg = JSON.parse(e.data)
-      } catch (parseErr) {
+      } catch {
         console.warn('[DOT-BOX] Received non-JSON message:', e.data)
         return
       }

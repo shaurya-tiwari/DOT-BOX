@@ -1,6 +1,6 @@
-export default function GameResult({ game, playerId, playerName, isHost, onBackToLobby, onHome, inline }) {
+export default function GameResult({ game, playerId, _playerName, isHost, onBackToLobby, onHome, inline }) {
   const winner = game?.winner
-  const myPlayer = game?.players?.find(p => p.player_id === playerId)
+  const _myPlayer = game?.players?.find(p => p.player_id === playerId)
   // For 3+ player games, look up the actual winner by player_id
   const winnerPlayer = game?.players?.find(p => p.player_id === winner)
 

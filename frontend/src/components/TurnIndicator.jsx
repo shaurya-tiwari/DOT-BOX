@@ -1,4 +1,4 @@
-export default function TurnIndicator({ isMyTurn, myName, oppName, status }) {
+export default function TurnIndicator({ isMyTurn, _myName, oppName, status }) {
   if (status === 'waiting') {
     return (
       <div className="turn-badge their-turn">
