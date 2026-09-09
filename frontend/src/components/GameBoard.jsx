@@ -59,6 +59,13 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     }
   }, [walls])
 
+  // Clear stale pending walls after 10s (server never confirmed — lost message)
+  useEffect(() => {
+    if (pendingWalls.size === 0) return
+    const timer = setTimeout(() => setPendingWalls(new Set()), 10000)
+    return () => clearTimeout(timer)
+  }, [pendingWalls])
+
   function dotPos(r, c) {
     return { x: c * CELL + PADDING, y: r * CELL + PADDING }
   }

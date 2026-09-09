@@ -9,6 +9,12 @@ import ConfirmModal  from '../components/ConfirmModal'
 export default function Game({ navigate, gameData, setGameData }) {
   const { roomId, playerId, playerName } = gameData || {}
 
+  // Guard: if gameData is missing (stale tab/bookmark), redirect home
+  if (!roomId || !playerId) {
+    navigate('home')
+    return null
+  }
+
   const [game, setGame]                         = useState(gameData?.gameState || null)
   // isHost passed explicitly from WaitingRoom; fallback to players[0] for reconnect
   const isHost = gameData?.isHost ?? (game?.players?.[0]?.player_id === playerId)
@@ -83,6 +89,8 @@ export default function Game({ navigate, gameData, setGameData }) {
     if (pendingMove) return
     setPendingMove(true)
     socketRef.current?.sendMove(wallId)
+    // Safety timeout — unlock if server never responds (network issue)
+    setTimeout(() => setPendingMove(false), 5000)
   }, [pendingMove])
 
   // Exit game — player leaves silently, game continues for others

@@ -5,9 +5,23 @@ export default function Home({ navigate }) {
   const [serverStatus, setServerStatus] = useState('Connecting to server...')
 
   useEffect(() => {
-    pingServer()
-      .then(() => setServerStatus('Connected to server'))
-      .catch(() => setServerStatus('Server sleeping...'))
+    let cancelled = false
+    async function tryPing(attempt = 0) {
+      try {
+        await pingServer()
+        if (!cancelled) setServerStatus('Connected to server')
+      } catch (_) {
+        if (cancelled) return
+        if (attempt < 5) {
+          setServerStatus('Waking up server… (this takes ~30s on first visit)')
+          setTimeout(() => tryPing(attempt + 1), 5000)
+        } else {
+          setServerStatus('Server unavailable — please try again later')
+        }
+      }
+    }
+    tryPing()
+    return () => { cancelled = true }
   }, [])
 
   return (

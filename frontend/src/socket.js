@@ -1,6 +1,7 @@
 const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
 const BACKOFF = [1000, 2000, 4000, 8000, 16000] // ms between reconnect attempts
+const MAX_RETRIES = 8 // give up after this many attempts
 
 export class GameSocket {
   constructor(roomId, playerId, onMessage, { onOpen, onClose, onStateChange } = {}) {
@@ -14,6 +15,7 @@ export class GameSocket {
     this._destroyed = false
     this._retryCount = 0
     this._retryTimer = null
+    this._pendingQueue = [] // messages to replay after reconnect
     this.state = 'idle' // idle | connecting | open | reconnecting | closed
   }
 
@@ -40,11 +42,33 @@ export class GameSocket {
       this._retryCount = 0
       this._setState('open')
       this.onOpen()
+      // Replay any queued messages from while we were disconnected
+      while (this._pendingQueue.length > 0) {
+        const msg = this._pendingQueue.shift()
+        try {
+          this.ws.send(JSON.stringify(msg))
+        } catch (_) {
+          // Put it back and stop trying
+          this._pendingQueue.unshift(msg)
+          break
+        }
+      }
     }
 
     this.ws.onmessage = (e) => {
       if (this._destroyed) return
-      try { this.onMessage(JSON.parse(e.data)) } catch (_) {}
+      let msg
+      try {
+        msg = JSON.parse(e.data)
+      } catch (parseErr) {
+        console.warn('[DOT-BOX] Received non-JSON message:', e.data)
+        return
+      }
+      try {
+        this.onMessage(msg)
+      } catch (handlerErr) {
+        console.error('[DOT-BOX] Error in message handler:', handlerErr)
+      }
     }
 
     this.ws.onerror = () => {
@@ -60,11 +84,18 @@ export class GameSocket {
         this.onClose()
         return
       }
-      // Auto-reconnect
+      // Give up after max retries — room was likely deleted
+      if (this._retryCount >= MAX_RETRIES) {
+        console.warn('[DOT-BOX] Max reconnect attempts reached, giving up')
+        this._setState('closed')
+        this.onClose()
+        return
+      }
+      // Auto-reconnect with backoff
       const delay = BACKOFF[Math.min(this._retryCount, BACKOFF.length - 1)]
       this._retryCount++
       this._setState('reconnecting')
-      console.log(`[DOT-BOX] Reconnecting in ${delay}ms (attempt ${this._retryCount})…`)
+      console.log(`[DOT-BOX] Reconnecting in ${delay}ms (attempt ${this._retryCount}/${MAX_RETRIES})…`)
       this._retryTimer = setTimeout(() => {
         if (!this._destroyed) this.connect()
       }, delay)
@@ -96,12 +127,21 @@ export class GameSocket {
 
   _send(payload) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(payload))
+      try {
+        this.ws.send(JSON.stringify(payload))
+      } catch (err) {
+        console.warn('[DOT-BOX] Send failed, queueing for reconnect:', err)
+        this._pendingQueue.push(payload)
+      }
+    } else {
+      // Queue for replay when connection reopens
+      this._pendingQueue.push(payload)
     }
   }
 
   disconnect() {
     this._destroyed = true
+    this._pendingQueue = []
     clearTimeout(this._retryTimer)
     if (this.ws) {
       this.ws.onclose = null // prevent reconnect loop on intentional close
@@ -111,3 +151,4 @@ export class GameSocket {
     this._setState('closed')
   }
 }
+

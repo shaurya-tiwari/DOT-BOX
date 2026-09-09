@@ -59,6 +59,20 @@ def join_game(room_id: str, player_name: str) -> Tuple[Optional[Game], Optional[
 
 def add_wall(game: Game, player_id: str, wall_id: str) -> Tuple[list, Optional[str]]:
     """Returns (completed_box_ids, error_or_None)"""
+    # Validate wall_id format: must be "h-R-C" or "v-R-C" with valid integers
+    parts = wall_id.split("-")
+    if len(parts) != 3 or parts[0] not in ("h", "v"):
+        return [], "Invalid wall format"
+    try:
+        r, c = int(parts[1]), int(parts[2])
+    except ValueError:
+        return [], "Invalid wall format"
+    n = game.grid_size
+    if parts[0] == "h" and not (0 <= r < n and 0 <= c < n - 1):
+        return [], "Wall out of bounds"
+    if parts[0] == "v" and not (0 <= r < n - 1 and 0 <= c < n):
+        return [], "Wall out of bounds"
+
     if game.status != "playing":
         return [], "Game is not in progress"
     if game.current_turn != player_id:

@@ -4,6 +4,12 @@ import ConfirmModal from '../components/ConfirmModal'
 
 export default function WaitingRoom({ navigate, gameData }) {
   const { roomId, playerId, playerName, isInLobby } = gameData || {}
+
+  // Guard: if gameData is missing (stale tab/bookmark), redirect home
+  if (!roomId || !playerId) {
+    navigate('home')
+    return null
+  }
   const socketRef = useRef(null)
   const [copied, setCopied] = useState(false)
   const [gameStatus, setGameStatus] = useState(isInLobby ? 'lobby' : 'waiting')
@@ -82,10 +88,31 @@ export default function WaitingRoom({ navigate, gameData }) {
   }, [roomId, playerId])
 
   function copyCode() {
-    navigator.clipboard.writeText(roomId).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
+    const fallbackCopy = () => {
+      try {
+        const textarea = document.createElement('textarea')
+        textarea.value = roomId
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (_) {
+        // Last resort — user can manually copy the displayed code
+      }
+    }
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(roomId).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(fallbackCopy)
+    } else {
+      fallbackCopy()
+    }
   }
 
   function handleStartGame() {

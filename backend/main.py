@@ -1,4 +1,5 @@
 import json
+import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -54,6 +55,8 @@ async def get_game_endpoint(room_id: str):
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────
 
+MSG_RATE_LIMIT = 0.05  # max 1 message per 50ms
+
 @app.websocket("/ws/{room_id}/{player_id}")
 async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
     await manager.connect(ws, room_id, player_id)
@@ -87,29 +90,54 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
     if game.status in ("lobby", "playing"):
         await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
+    last_msg_time = 0.0
+
     try:
         while True:
             raw = await ws.receive_text()
-            msg = json.loads(raw)
-            game = games.get(room_id)
-            if not game:
+
+            # Rate limiting — drop flood messages
+            now = time.monotonic()
+            if now - last_msg_time < MSG_RATE_LIMIT:
+                continue
+            last_msg_time = now
+
+            # Parse JSON safely
+            try:
+                msg = json.loads(raw)
+            except (json.JSONDecodeError, ValueError):
+                await manager.send_personal(ws, {"type": "error", "message": "Invalid message format"})
                 continue
 
-            if msg["type"] == "make_move":
+            # Validate message has a type
+            msg_type = msg.get("type")
+            if not msg_type:
+                continue
+
+            game = games.get(room_id)
+            if not game:
+                await manager.send_personal(ws, {"type": "error", "message": "Room not found"})
+                continue
+
+            if msg_type == "make_move":
+                wall_id = msg.get("wall_id")
+                if not wall_id or not isinstance(wall_id, str):
+                    await manager.send_personal(ws, {"type": "error", "message": "Invalid move"})
+                    continue
                 async with lock:
-                    completed, error = add_wall(game, player_id, msg["wall_id"])
+                    completed, error = add_wall(game, player_id, wall_id)
                 if error:
                     await manager.send_personal(ws, {"type": "error", "message": error})
                 else:
                     await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
-            elif msg["type"] == "rematch":
+            elif msg_type == "rematch":
                 async with lock:
                     if game.status == "finished":
                         reset_game(game)
                         await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
-            elif msg["type"] == "back_to_lobby":
+            elif msg_type == "back_to_lobby":
                 async with lock:
                     # Only host (first player) can send everyone back to lobby
                     if game.players and game.players[0].player_id == player_id:
@@ -119,14 +147,14 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
                     else:
                         await manager.send_personal(ws, {"type": "error", "message": "Only the host can do that"})
 
-            elif msg["type"] == "start_game":
+            elif msg_type == "start_game":
                 async with lock:
                     active = len([p for p in game.players if p.connected])
                     if game.status == "lobby" and active >= 2:
                         start_game(game)
                         await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
-            elif msg["type"] == "leave_room":
+            elif msg_type == "leave_room":
                 async with lock:
                     remove_player(game, player_id)
                     # Cleanup empty rooms to prevent memory leak
@@ -136,18 +164,28 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
                         await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
     except WebSocketDisconnect:
+        pass  # handled in finally
+    except Exception:
+        import traceback
+        traceback.print_exc()
+    finally:
+        # Always cleanup — whether it was a clean disconnect, crash, or unexpected error
         manager.disconnect(ws, room_id)
         game = games.get(room_id)
         if game:
             async with lock:
                 still_connected = any(pid == player_id for _, pid in manager._rooms.get(room_id, []))
                 set_player_connection(game, player_id, still_connected)
-            
+
             if not still_connected:
                 disconnecting_player = next((p for p in game.players if p.player_id == player_id), None)
-                await manager.broadcast(room_id, {
-                    "type": "player_disconnected",
-                    "player_id": player_id,
-                    "player_name": disconnecting_player.name if disconnecting_player else "Opponent",
-                })
-                await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
+                try:
+                    await manager.broadcast(room_id, {
+                        "type": "player_disconnected",
+                        "player_id": player_id,
+                        "player_name": disconnecting_player.name if disconnecting_player else "Opponent",
+                    })
+                    await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
+                except Exception:
+                    pass  # best-effort broadcast on cleanup
+

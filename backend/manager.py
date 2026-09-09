@@ -35,18 +35,22 @@ class ConnectionManager:
     def get_player_count(self, room_id: str) -> int:
         return len(self._rooms.get(room_id, []))
 
-    async def broadcast(self, room_id: str, message: dict):
+    async def broadcast(self, room_id: str, message: dict) -> list:
+        """Broadcast message. Returns list of player_ids whose sockets were dead."""
         payload = json.dumps(message)
         if room_id not in self._rooms:
-            return
+            return []
         dead = []
+        dead_pids = []
         for ws, pid in list(self._rooms[room_id]):
             try:
                 await ws.send_text(payload)
             except Exception:
                 dead.append(ws)
+                dead_pids.append(pid)
         for ws in dead:
             self.disconnect(ws, room_id)
+        return dead_pids
 
     async def send_personal(self, ws: WebSocket, message: dict):
         try:
