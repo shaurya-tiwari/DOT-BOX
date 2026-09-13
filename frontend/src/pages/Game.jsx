@@ -1,25 +1,37 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { GameSocket } from '../socket'
-import Header        from '../components/Header'
-import { ScoreRow }  from '../components/ScoreBoard'
-import GameBoard     from '../components/GameBoard'
-import GameResult    from './GameResult'
-import ConfirmModal  from '../components/ConfirmModal'
+import Header from '../components/Header'
+import { ScoreRow } from '../components/ScoreBoard'
+import GameBoard from '../components/GameBoard'
+import GameResult from './GameResult'
+import ConfirmModal from '../components/ConfirmModal'
+import { vibrateMyTurn } from '../utils/haptics'
 
 export default function Game({ navigate, gameData, _setGameData }) {
   const { roomId, playerId, playerName } = gameData || {}
 
-  const [game, setGame]                         = useState(gameData?.gameState || null)
+  const [game, setGame] = useState(gameData?.gameState || null)
   // isHost passed explicitly from WaitingRoom; fallback to players[0] for reconnect
   const isHost = gameData?.isHost ?? (game?.players?.[0]?.player_id === playerId)
   const [disconnectedPlayer, setDisconnectedPlayer] = useState(null)
-  const [socketState, setSocketState]           = useState('connecting')
-  const [pendingMove, setPendingMove]           = useState(false)
+  const [socketState, setSocketState] = useState('connecting')
+  const [pendingMove, setPendingMove] = useState(false)
 
   // Modal state: null | 'leave' | 'backToRoom'
   const [modal, setModal] = useState(null)
 
   const socketRef = useRef(null)
+
+  // ── Haptic feedback: vibrate when turn becomes yours ──────────────────────
+  const isMyTurn = game?.current_turn === playerId && game?.status === 'playing'
+  const prevIsMyTurnRef = useRef(false)
+
+  useEffect(() => {
+    if (isMyTurn && !prevIsMyTurnRef.current) {
+      vibrateMyTurn()
+    }
+    prevIsMyTurnRef.current = isMyTurn
+  }, [isMyTurn])
 
   // ── Browser back button + tab close protection ────────────────────────────
   useEffect(() => {
@@ -116,10 +128,9 @@ export default function Game({ navigate, gameData, _setGameData }) {
   }
 
   const { players = [], current_turn, status } = game
-  const isMyTurn   = current_turn === playerId && status === 'playing'
-  const canMove    = isMyTurn && !pendingMove
+  const canMove = isMyTurn && !pendingMove
   const turnPlayer = players.find(p => p.player_id === current_turn)
-  const turnLabel  = status === 'playing'
+  const turnLabel = status === 'playing'
     ? isMyTurn ? 'Your turn' : `${turnPlayer?.name || 'Opponent'}'s turn`
     : status === 'finished' ? 'Game over' : ''
 
