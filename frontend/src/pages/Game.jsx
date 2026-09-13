@@ -5,7 +5,7 @@ import { ScoreRow } from '../components/ScoreBoard'
 import GameBoard from '../components/GameBoard'
 import GameResult from './GameResult'
 import ConfirmModal from '../components/ConfirmModal'
-import { vibrateMyTurn } from '../utils/haptics'
+import { vibrateMyTurn, primeVibration } from '../utils/haptics'
 
 export default function Game({ navigate, gameData, _setGameData }) {
   const { roomId, playerId, playerName } = gameData || {}
@@ -22,16 +22,53 @@ export default function Game({ navigate, gameData, _setGameData }) {
 
   const socketRef = useRef(null)
 
+  // ── Prime Vibration API on first user interaction ─────────────────────────
+  // Many mobile browsers block navigator.vibrate() until a user gesture occurs.
+  // The host clicks "Start Game" (gesture) so their phone works, but non-host
+  // players haven't tapped anything on the Game page yet. This one-time listener
+  // fires an imperceptible 1ms vibration on the FIRST touch/click to unlock the
+  // API for ALL players.
+  useEffect(() => {
+    const handler = () => {
+      primeVibration()
+      window.removeEventListener('touchstart', handler, true)
+      window.removeEventListener('click', handler, true)
+    }
+    window.addEventListener('touchstart', handler, { capture: true, once: true })
+    window.addEventListener('click', handler, { capture: true, once: true })
+    return () => {
+      window.removeEventListener('touchstart', handler, true)
+      window.removeEventListener('click', handler, true)
+    }
+  }, [])
+
   // ── Haptic feedback: vibrate when turn becomes yours ──────────────────────
+  // Track the actual current_turn player ID (not a derived boolean) to avoid
+  // glitchy double-fires from the server sending 2 game_state messages on
+  // WebSocket connect (personal send + room broadcast).
   const isMyTurn = game?.current_turn === playerId && game?.status === 'playing'
-  const prevIsMyTurnRef = useRef(false)
+  const prevTurnRef = useRef(null)
+  const vibrateTimerRef = useRef(null)
 
   useEffect(() => {
-    if (isMyTurn && !prevIsMyTurnRef.current) {
-      vibrateMyTurn()
+    const currentTurn = game?.status === 'playing' ? game?.current_turn : null
+
+    // Only vibrate when turn genuinely CHANGES to this player
+    if (currentTurn === playerId && prevTurnRef.current !== playerId) {
+      // Debounce: server often sends 2 game_state messages in rapid succession
+      // (personal + broadcast). Wait 100ms to let them settle, then vibrate once.
+      clearTimeout(vibrateTimerRef.current)
+      vibrateTimerRef.current = setTimeout(() => {
+        vibrateMyTurn()
+      }, 100)
+    } else if (currentTurn !== playerId) {
+      // Turn moved away from us — cancel any pending vibration
+      clearTimeout(vibrateTimerRef.current)
     }
-    prevIsMyTurnRef.current = isMyTurn
-  }, [isMyTurn])
+
+    prevTurnRef.current = currentTurn
+    return () => clearTimeout(vibrateTimerRef.current)
+  }, [game?.current_turn, game?.status, playerId])
 
   // ── Browser back button + tab close protection ────────────────────────────
   useEffect(() => {
