@@ -4,11 +4,11 @@ import { wallIdFromDots, isAdjacent } from '../utils/board'
 // Player color palette — up to 5 players
 const P_COLORS      = ['#5C4033', '#2C4A5C', '#2D6A4F', '#6B3FA0', '#C0392B']
 const P_FILLS       = [
-  'rgba(204, 97, 47, 1)',
-  'rgba(74, 171, 231, 0.93)',
-  'rgba(31, 199, 123, 0.94)',
-  'rgba(162, 104, 232, 0.93)',
-  'rgba(234, 59, 40, 0.94)',
+  'rgba(254, 105, 37, 0.74)',
+  'rgba(75, 186, 255, 0.93)',
+  'rgba(61, 246, 163, 0.83)',
+  'rgba(175, 115, 248, 0.74)',
+  'rgba(253, 67, 47, 0.88)',
 ]
 //  this one is correct for colors , the latest on date 7 sep 9 13 pm  by shaurya 
 const P_LINE_COLORS = ['#7A5240', '#3A6080', '#3D8F68', '#8A55C0', '#D44F40']
@@ -160,8 +160,8 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     playerNameMap[p.player_id]  = p.name
   })
 
-  // My player color for drag preview
-  const myColor = playerLineMap[playerId] || 'var(--muted)'
+  // All lines and dots are black — player identity shown via box fill only
+  const myColor = '#000'
 
   const wallsSet = new Set(walls)
 
@@ -259,7 +259,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
         const p2 = orient === 'h'
           ? dotPos(Number(r), Number(c) + 1)
           : dotPos(Number(r) + 1, Number(c))
-        const ownerColor = playerLineMap[wall_owners[wallId]] || 'var(--ink)'
+        const ownerColor = '#000'
         const isNew = newWalls.has(wallId)
         // Scale stroke width with cell size
         const sw = Math.max(2.5, Math.min(4, CELL * 0.07))
@@ -287,7 +287,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
           <line
             key={`pending-${wallId}`}
             x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-            stroke={myColor}
+            stroke='#000'
             strokeWidth={sw}
             strokeLinecap="round"
             opacity={0.55}

@@ -59,6 +59,7 @@ export default function Game({ navigate, gameData, _setGameData }) {
       // (personal + broadcast). Wait 100ms to let them settle, then vibrate once.
       clearTimeout(vibrateTimerRef.current)
       vibrateTimerRef.current = setTimeout(() => {
+        vibrateTimerRef.current = null
         vibrateMyTurn()
       }, 100)
     } else if (currentTurn !== playerId) {
