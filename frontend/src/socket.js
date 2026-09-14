@@ -42,17 +42,12 @@ export class GameSocket {
       this._retryCount = 0
       this._setState('open')
       this.onOpen()
-      // Replay any queued messages from while we were disconnected
-      while (this._pendingQueue.length > 0) {
-        const msg = this._pendingQueue.shift()
-        try {
-          this.ws.send(JSON.stringify(msg))
-        } catch {
-          // Put it back and stop trying
-          this._pendingQueue.unshift(msg)
-          break
-        }
-      }
+      // Clear the queue on reconnect — the server sends fresh game_state on
+      // connect which already reflects any moves that were processed before
+      // the disconnect. Replaying make_move would cause "Wall already placed"
+      // error flashes for moves that succeeded. Other message types (start_game,
+      // back_to_lobby etc.) are host-initiated and stale after a reconnect.
+      this._pendingQueue = []
     }
 
     this.ws.onmessage = (e) => {

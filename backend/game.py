@@ -1,5 +1,5 @@
-import uuid
 import random
+import secrets
 import string
 from typing import Dict, Optional, Tuple
 from models import Game, Player
@@ -10,12 +10,14 @@ games: Dict[str, Game] = {}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _gen_room_id() -> str:
+    """Cryptographically random 6-char room code (uppercase + digits)."""
     chars = string.ascii_uppercase + string.digits
-    return "".join(random.choices(chars, k=6))
+    return "".join(secrets.choice(chars) for _ in range(6))
 
 
 def _player_id() -> str:
-    return str(uuid.uuid4())[:8]
+    """Cryptographically random 8-char player ID (unpredictable)."""
+    return secrets.token_hex(4)  # 4 bytes = 8 hex chars, crypto-safe
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -77,10 +79,13 @@ def add_wall(game: Game, player_id: str, wall_id: str) -> Tuple[list, Optional[s
         return [], "Game is not in progress"
     if game.current_turn != player_id:
         return [], "Not your turn"
-    if wall_id in game.walls:
+
+    # O(1) lookup via runtime set — much faster than list.index or "in list"
+    if wall_id in game.walls_set:
         return [], "Wall already placed"
 
     game.walls.append(wall_id)
+    game.walls_set.add(wall_id)           # keep set in sync — O(1)
     game.wall_owners[wall_id] = player_id
 
     completed = _check_boxes(game, wall_id)
@@ -121,6 +126,7 @@ def set_player_connection(game: Game, player_id: str, connected: bool):
 def reset_game(game: Game):
     """Reset board → lobby so players can confirm restart."""
     game.walls = []
+    game.walls_set = set()       # reset the O(1) lookup set too
     game.wall_owners = {}
     game.boxes = {}
     game.winner = None
@@ -131,12 +137,13 @@ def reset_game(game: Game):
 
 
 def start_game(game: Game):
-    """Transition from lobby → playing."""
+    """Transition from lobby → playing. First turn is randomized among connected players."""
     game.status = "playing"
-    for p in game.players:
-        if p.connected:
-            game.current_turn = p.player_id
-            break
+    connected = [p for p in game.players if p.connected]
+    if connected:
+        # Randomize first mover — removes host first-mover advantage
+        first = secrets.choice(connected)
+        game.current_turn = first.player_id
 
 
 # ── Internal logic ────────────────────────────────────────────────────────────
@@ -146,7 +153,7 @@ def _check_boxes(game: Game, wall_id: str) -> list:
     orient, r, c = parts[0], int(parts[1]), int(parts[2])
 
     candidates = ([(r - 1, c), (r, c)] if orient == "h" else [(r, c - 1), (r, c)])
-    walls_set = set(game.walls)
+    # Use game.walls_set directly — O(1) per lookup, already maintained
     completed = []
 
     for br, bc in candidates:
@@ -157,37 +164,45 @@ def _check_boxes(game: Game, wall_id: str) -> list:
                 bottom = f"h-{br+1}-{bc}"
                 left   = f"v-{br}-{bc}"
                 right  = f"v-{br}-{bc+1}"
-                if all(w in walls_set for w in [top, bottom, left, right]):
+                if all(w in game.walls_set for w in (top, bottom, left, right)):
                     completed.append(box_id)
 
     return completed
 
 
 def _assign_boxes(game: Game, box_ids: list, player_id: str):
+    # Build a player lookup dict — O(1) per score increment, not O(p) per box
+    player_map = {p.player_id: p for p in game.players}
+    scorer = player_map.get(player_id)
     for box_id in box_ids:
         game.boxes[box_id] = player_id
-        for p in game.players:
-            if p.player_id == player_id:
-                p.score += 1
-                break
+    if scorer:
+        scorer.score += len(box_ids)
 
 
 def _next_turn(game: Game, current_player_id: str, scored: bool) -> str:
-    """Cycle through all players. If scored, same player goes again."""
-    if scored:
-        return current_player_id
-    
-    active = [p for p in game.players if p.connected]
-    if not active:
+    """Cycle through all players. If scored AND still connected, same player goes again."""
+    # Build a fast lookup for connected state — O(1) check
+    player_map = {p.player_id: p for p in game.players}
+    current = player_map.get(current_player_id)
+
+    # Stay on same player only if they scored AND are still connected
+    if scored and current and current.connected:
         return current_player_id
 
-    # Find current index and advance to next connected player
+    # Rotate to next connected player
+    active = [p for p in game.players if p.connected]
+    if not active:
+        # All disconnected — keep current, game will end via connection handling
+        return current_player_id
+
+    # Find current index in full player list and advance
     idx = next((i for i, p in enumerate(game.players) if p.player_id == current_player_id), 0)
-    for i in range(1, len(game.players)):
+    for i in range(1, len(game.players) + 1):
         next_idx = (idx + i) % len(game.players)
         if game.players[next_idx].connected:
             return game.players[next_idx].player_id
-            
+
     return current_player_id
 
 

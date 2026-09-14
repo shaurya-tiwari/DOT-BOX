@@ -27,18 +27,24 @@ export default function GameResult({ game, playerId, _playerName, isHost, onBack
       </div>
 
       {/* Final scores */}
-      <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
-        {game.players?.map((p, i) => (
-          <div key={p.player_id} style={{ textAlign: 'center' }}>
-            <div className="text-display" style={{
-              fontSize: '2.5rem',
-              color: i === 0 ? 'var(--warm)' : 'var(--cool)'
-            }}>
-              {p.score}
+      <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+        {game.players?.map((p, i) => {
+          // Use same P_FILLS palette as the board — player always sees their own color
+          const scoreColors = [
+            '#FF6921', '#2BBAFF', '#3DF6A3', '#AF73F8', '#FD432F'
+          ]
+          return (
+            <div key={p.player_id} style={{ textAlign: 'center' }}>
+              <div className="text-display" style={{
+                fontSize: '2.5rem',
+                color: scoreColors[i] || 'var(--accent)'
+              }}>
+                {p.score}
+              </div>
+              <div className="text-small text-muted">{p.name}</div>
             </div>
-            <div className="text-small text-muted">{p.name}</div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>

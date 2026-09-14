@@ -168,8 +168,14 @@ export default function Game({ navigate, gameData, _setGameData }) {
   const { players = [], current_turn, status } = game
   const canMove = isMyTurn && !pendingMove
   const turnPlayer = players.find(p => p.player_id === current_turn)
+  // Guard: if current_turn points to a player who left (remove_player race),
+  // show a safe fallback instead of "undefined's turn"
   const turnLabel = status === 'playing'
-    ? isMyTurn ? 'Your turn' : `${turnPlayer?.name || 'Opponent'}'s turn`
+    ? isMyTurn
+      ? 'Your turn'
+      : turnPlayer
+        ? `${turnPlayer.name}'s turn`
+        : 'Waiting…'   // server is catching up after a player left
     : status === 'finished' ? 'Game over' : ''
 
   return (

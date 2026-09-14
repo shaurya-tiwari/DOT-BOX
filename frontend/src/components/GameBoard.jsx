@@ -1,17 +1,17 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { wallIdFromDots, isAdjacent } from '../utils/board'
 
 // Player color palette — up to 5 players
-const P_COLORS      = ['#5C4033', '#2C4A5C', '#2D6A4F', '#6B3FA0', '#C0392B']
-const P_FILLS       = [
+// P_COLORS: used for box label text color
+// P_FILLS:  used for box background fill (semi-transparent)
+const P_COLORS = ['#5C4033', '#2C4A5C', '#2D6A4F', '#6B3FA0', '#C0392B']
+const P_FILLS  = [
   'rgba(254, 105, 37, 0.74)',
   'rgba(75, 186, 255, 0.93)',
   'rgba(61, 246, 163, 0.83)',
   'rgba(175, 115, 248, 0.74)',
   'rgba(253, 67, 47, 0.88)',
 ]
-//  this one is correct for colors , the latest on date 7 sep 9 13 pm  by shaurya 
-const P_LINE_COLORS = ['#7A5240', '#3A6080', '#3D8F68', '#8A55C0', '#D44F40']
 
 // Tracks newly-placed wall IDs for entry animation
 const ANIM_DURATION = 140 // ms
@@ -19,8 +19,12 @@ const ANIM_DURATION = 140 // ms
 export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
   const svgRef   = useRef(null)
   const [drag, setDrag] = useState(null) // { startR, startC, curX, curY }
-  const [newWalls, setNewWalls] = useState(new Set()) // wall IDs that are still animating in
-  const [pendingWalls, setPendingWalls] = useState(new Set()) // optimistic walls awaiting server confirm
+  const [newWalls, setNewWalls] = useState(new Set()) // wall IDs still animating in
+  const [pendingWalls, setPendingWalls] = useState(new Set()) // optimistic walls awaiting confirm
+
+  // Always-current Set of confirmed walls — used in callbacks to avoid stale closure
+  // over the `walls` array. Updated in the same effect that tracks prevWallsRef.
+  const wallsSetRef  = useRef(new Set())
   const prevWallsRef = useRef(new Set())
   const lastSnapRef  = useRef(null) // last valid adjacent dot the finger passed over
 
@@ -37,10 +41,15 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
   // Track newly-added walls for draw-in animation + clean up pending walls
   useEffect(() => {
     const currentSet = new Set(walls)
+
+    // Find newly added walls since last render
     const added = new Set()
     for (const w of currentSet) {
       if (!prevWallsRef.current.has(w)) added.add(w)
     }
+
+    // Keep wallsSetRef always current — used by onPointerUp to avoid stale closure
+    wallsSetRef.current = currentSet
     prevWallsRef.current = currentSet
 
     // Remove confirmed walls from pending (optimistic → real)
@@ -66,20 +75,35 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     return () => clearTimeout(timer)
   }, [pendingWalls])
 
+  // Clear drag state if turn flips away mid-drag (server correction or timeout)
+  useEffect(() => {
+    if (!isMyTurn) setDrag(null)
+  }, [isMyTurn])
+
+  // Player map — built once per players change, not on every render (60fps drag)
+  const { playerColorMap, playerFillMap, playerNameMap } = useMemo(() => {
+    const colorMap = {}
+    const fillMap  = {}
+    const nameMap  = {}
+    players.forEach((p, i) => {
+      colorMap[p.player_id] = P_COLORS[i] || '#888'
+      fillMap[p.player_id]  = P_FILLS[i]  || 'rgba(130,130,130,0.12)'
+      nameMap[p.player_id]  = p.name
+    })
+    return { playerColorMap: colorMap, playerFillMap: fillMap, playerNameMap: nameMap }
+  }, [players])
+
   function dotPos(r, c) {
     return { x: c * CELL + PADDING, y: r * CELL + PADDING }
   }
 
+  // O(1) nearest-dot lookup — dots are on a uniform grid so we can round
+  // instead of iterating all n² dots. Was O(n²) per pointermove frame.
   function nearestDot(svgX, svgY) {
-    let best = null, bestD = Infinity
-    for (let r = 0; r < n; r++) {
-      for (let c = 0; c < n; c++) {
-        const p = dotPos(r, c)
-        const d = Math.hypot(svgX - p.x, svgY - p.y)
-        if (d < bestD) { bestD = d; best = { r, c, d } }
-      }
-    }
-    return best
+    const c  = Math.min(n - 1, Math.max(0, Math.round((svgX - PADDING) / CELL)))
+    const r  = Math.min(n - 1, Math.max(0, Math.round((svgY - PADDING) / CELL)))
+    const p  = dotPos(r, c)
+    return { r, c, d: Math.hypot(svgX - p.x, svgY - p.y) }
   }
 
   function toSVGCoords(e) {
@@ -139,31 +163,18 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
     }
     if (target) {
       const wallId = wallIdFromDots(drag.startR, drag.startC, target.r, target.c)
-      if (wallId && !walls.includes(wallId) && !pendingWalls.has(wallId)) {
+      // Use wallsSetRef.current (always-current O(1) Set) instead of walls.includes()
+      // walls.includes() is O(n) AND closes over a potentially stale array reference
+      if (wallId && !wallsSetRef.current.has(wallId) && !pendingWalls.has(wallId)) {
         setPendingWalls(prev => new Set([...prev, wallId]))
         onMove(wallId)
       }
     }
     lastSnapRef.current = null
     setDrag(null)
-  }, [drag, walls, pendingWalls, onMove])
+  }, [drag, pendingWalls, onMove])
 
-  // Player color/fill/name lookup by player_id
-  const playerColorMap = {}
-  const playerLineMap  = {}
-  const playerFillMap  = {}
-  const playerNameMap  = {}
-  players.forEach((p, i) => {
-    playerColorMap[p.player_id] = P_COLORS[i] || '#888'
-    playerLineMap[p.player_id]  = P_LINE_COLORS[i] || '#888'
-    playerFillMap[p.player_id]  = P_FILLS[i] || 'rgba(130,130,130,0.12)'
-    playerNameMap[p.player_id]  = p.name
-  })
-
-  // All lines and dots are black — player identity shown via box fill only
-  const myColor = '#000'
-
-  const wallsSet = new Set(walls)
+  const wallsSet = wallsSetRef.current
 
   // Preview: snap to nearest adjacent dot if close enough
   let previewX2 = drag?.curX
@@ -251,15 +262,13 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
         )
       })}
 
-
-      {/* ── Drawn walls (colored by player who drew them) ── */}
+      {/* ── Drawn walls — all black, no player color ── */}
       {Array.from(wallsSet).map(wallId => {
         const [orient, r, c] = wallId.split('-')
         const p1 = dotPos(Number(r), Number(c))
         const p2 = orient === 'h'
           ? dotPos(Number(r), Number(c) + 1)
           : dotPos(Number(r) + 1, Number(c))
-        const ownerColor = '#000'
         const isNew = newWalls.has(wallId)
         // Scale stroke width with cell size
         const sw = Math.max(2.5, Math.min(4, CELL * 0.07))
@@ -268,7 +277,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
             key={wallId}
             className={isNew ? 'wall-new' : ''}
             x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-            stroke={ownerColor}
+            stroke="#000"
             strokeWidth={sw}
             strokeLinecap="round"
           />
@@ -287,7 +296,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
           <line
             key={`pending-${wallId}`}
             x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-            stroke='#000'
+            stroke="#000"
             strokeWidth={sw}
             strokeLinecap="round"
             opacity={0.55}
@@ -301,7 +310,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
           x1={dotPos(drag.startR, drag.startC).x}
           y1={dotPos(drag.startR, drag.startC).y}
           x2={previewX2} y2={previewY2}
-          stroke={isSnapped ? myColor : 'var(--muted)'}
+          stroke={isSnapped ? '#000' : 'var(--muted)'}
           strokeWidth={isSnapped ? 3.5 : 2.5}
           strokeDasharray={isSnapped ? 'none' : '8 5'}
           strokeLinecap="round"
@@ -329,7 +338,7 @@ export default function GameBoard({ game, playerId, isMyTurn, onMove }) {
               <circle
                 cx={x} cy={y}
                 r={isStart || isSnapEnd ? dotActive : dotR}
-                fill={isStart ? myColor : 'var(--ink)'}
+                fill="var(--ink)"
                 style={{ transition: 'r 0.1s ease' }}
               />
             </g>

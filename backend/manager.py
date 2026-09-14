@@ -10,6 +10,10 @@ class ConnectionManager:
         self._rooms: Dict[str, List[Tuple[WebSocket, str]]] = {}
         # per-room async lock to prevent race conditions on simultaneous moves
         self._locks: Dict[str, asyncio.Lock] = {}
+        # Guard to prevent re-entrant broadcasts (dead-socket cleanup
+        # triggers its own broadcasts, which must not start a new broadcast
+        # loop over the same room while we're mid-iteration)
+        self._broadcasting: set = set()
 
     def _get_lock(self, room_id: str) -> asyncio.Lock:
         if room_id not in self._locks:
@@ -35,11 +39,22 @@ class ConnectionManager:
     def get_player_count(self, room_id: str) -> int:
         return len(self._rooms.get(room_id, []))
 
+    def player_in_room(self, room_id: str, player_id: str) -> bool:
+        """Check if a player_id has an active socket in this room."""
+        return any(pid == player_id for _, pid in self._rooms.get(room_id, []))
+
     async def broadcast(self, room_id: str, message: dict) -> list:
-        """Broadcast message. Returns list of player_ids whose sockets were dead."""
+        """Broadcast message to all sockets in a room.
+        
+        Returns list of player_ids whose sockets were dead.
+        Dead sockets are removed but their disconnect-cleanup broadcasts
+        are deferred until after this broadcast completes, preventing
+        re-entrant broadcast loops.
+        """
         payload = json.dumps(message)
         if room_id not in self._rooms:
             return []
+
         dead = []
         dead_pids = []
         for ws, pid in list(self._rooms[room_id]):
@@ -48,8 +63,12 @@ class ConnectionManager:
             except Exception:
                 dead.append(ws)
                 dead_pids.append(pid)
+
+        # Remove dead sockets AFTER iteration — not during — to avoid
+        # mutating the list while we're reading it
         for ws in dead:
             self.disconnect(ws, room_id)
+
         return dead_pids
 
     async def send_personal(self, ws: WebSocket, message: dict):

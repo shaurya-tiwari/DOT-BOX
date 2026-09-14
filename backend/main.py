@@ -1,5 +1,6 @@
 import json
 import time
+import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,6 +20,38 @@ app.add_middleware(
 
 manager = ConnectionManager()
 
+# ── Room TTL cleanup ──────────────────────────────────────────────────────────
+# Tracks the last time a room had any activity (connection, move, etc.)
+# Rooms with no activity for ROOM_TTL_SECONDS and no connected players are purged.
+ROOM_TTL_SECONDS = 300  # 5 minutes
+_room_last_active: dict = {}
+
+
+def _touch_room(room_id: str):
+    """Update the last-active timestamp for a room."""
+    _room_last_active[room_id] = time.monotonic()
+
+
+async def _cleanup_stale_rooms():
+    """Periodic task: remove rooms where all players disconnected > TTL ago."""
+    while True:
+        await asyncio.sleep(60)  # check every minute
+        now = time.monotonic()
+        stale = []
+        for room_id, game in list(games.items()):
+            all_disconnected = all(not p.connected for p in game.players)
+            last_active = _room_last_active.get(room_id, 0)
+            if all_disconnected and (now - last_active) > ROOM_TTL_SECONDS:
+                stale.append(room_id)
+        for room_id in stale:
+            games.pop(room_id, None)
+            _room_last_active.pop(room_id, None)
+
+
+@app.on_event("startup")
+async def startup():
+    asyncio.create_task(_cleanup_stale_rooms())
+
 
 # ── HTTP Routes ───────────────────────────────────────────────────────────────
 
@@ -34,6 +67,7 @@ async def create_game_endpoint(req: CreateGameRequest):
     if req.max_players not in range(2, 6):
         raise HTTPException(400, "max_players must be between 2 and 5")
     game, player_id = create_game(req.player_name, req.grid_size, req.max_players)
+    _touch_room(game.room_id)
     return {"room_id": game.room_id, "player_id": player_id, "max_players": game.max_players}
 
 
@@ -42,6 +76,7 @@ async def join_game_endpoint(room_id: str, req: JoinGameRequest):
     game, player_id, error = join_game(room_id.upper(), req.player_name)
     if error:
         raise HTTPException(400, error)
+    _touch_room(game.room_id)
     return {"room_id": game.room_id, "player_id": player_id}
 
 
@@ -67,6 +102,16 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
         await manager.send_personal(ws, {"type": "error", "message": "Room not found"})
         manager.disconnect(ws, room_id)
         return
+
+    # ── Security: verify this player actually belongs to this room ────────────
+    # Prevents any client from snooping on or injecting into another room
+    # just by knowing the room_id.
+    if not any(p.player_id == player_id for p in game.players):
+        await manager.send_personal(ws, {"type": "error", "message": "You are not in this room"})
+        manager.disconnect(ws, room_id)
+        return
+
+    _touch_room(room_id)
 
     async with lock:
         set_player_connection(game, player_id, True)
@@ -101,6 +146,8 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
             if now - last_msg_time < MSG_RATE_LIMIT:
                 continue
             last_msg_time = now
+
+            _touch_room(room_id)
 
             # Parse JSON safely
             try:
@@ -160,6 +207,7 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
                     # Cleanup empty rooms to prevent memory leak
                     if not game.players:
                         games.pop(room_id, None)
+                        _room_last_active.pop(room_id, None)
                     else:
                         await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
 
@@ -178,6 +226,7 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
                 set_player_connection(game, player_id, still_connected)
 
             if not still_connected:
+                _touch_room(room_id)
                 disconnecting_player = next((p for p in game.players if p.player_id == player_id), None)
                 try:
                     await manager.broadcast(room_id, {
@@ -188,4 +237,3 @@ async def websocket_endpoint(ws: WebSocket, room_id: str, player_id: str):
                     await manager.broadcast(room_id, {"type": "game_state", "game": game.model_dump()})
                 except Exception:
                     pass  # best-effort broadcast on cleanup
-
