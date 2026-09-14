@@ -29,7 +29,7 @@ class Game(BaseModel):
     # We store this as a plain attribute set after construction so Pydantic
     # doesn't try to validate/serialize it.  game.py always accesses via
     # game.walls_set, not game.walls, for membership checks.
-    def model_post_init(self, __context):
+    def model_post_init(self, __context, /):
         object.__setattr__(self, "walls_set", set(self.walls))
 
     def model_dump(self, **kwargs):
